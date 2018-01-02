@@ -11,6 +11,7 @@ import numpy as np
 import allel
 from gwas import hapdata
 import msprime as msp
+import bisect
 from itertools import combinations
 
 
@@ -79,6 +80,7 @@ class Simstats:
         for p in pix:
             gtpop = gt[:, p]
             ac = gtpop.count_alleles()
+            # TODO: this needs to be padded so the length is consistent; check the msp2dadi.py script
             sfslist.append(allel.sfs_folded(ac))
         return(sfslist)
 
@@ -129,43 +131,41 @@ class Simstats:
         pix = [tree_sequence.get_samples(pop) for pop in range(npop)]
         afibsdict = {}
         for i, p in enumerate(pix):  # single pop
+            ibsarray = np.zeros((len(p), len(p)-1))
             gtpop = gt[:, p]
-            for ind in range(len(pix)):
-                ibslist = []
+            # segregating positions only
+            het = np.sum(gtpop, axis=1) > 0  # mask
+            # subsample for seg only
+            poslist = pos[het]
+            gtpop_seg = gtpop[het]
+            freqlist = np.sum(gtpop_seg, axis=1)
+            for ind in range(len(p)):
+                indpos = poslist[gtpop_seg[:, ind] > 0]
+                indpos = np.insert(indpos, 0, 0)
+                indpos = np.insert(indpos, len(indpos), length)
                 for freq in range(1, len(p)):
                     ibs = 0
-                    # snp position only
-                    het = np.sum(gtpop, axis=1) > 0  # mask
-                    # positions of snps
-                    poslist = pos[het]  # genome positions not index
-                    # freq of snp positions
-                    freqlist = np.sum(gtpop, axis=1)[het]
                     mut_ix = np.where(freqlist == freq)[0]
                     for m in mut_ix:
-                        if m == 0:
-                            ibs += poslist[m + 1]
-                        else:
-                            try:
-                                ibs += poslist[m + 1] - poslist[m - 1]
-                            except IndexError:
-                                ibs += length - poslist[m - 1]
+                        start = bisect.bisect_left(indpos, poslist[m])
+                        end = bisect.bisect_right(indpos, poslist[m])
+                        ibs += indpos[end] - indpos[start - 1]
                     try:
-                        ibslist.append(ibs / len(mut_ix))
+                        ibsarray[ind, freq-1] = (ibs / len(mut_ix))
                     except ZeroDivisionError:
                         # nothing in that freq class
-                        ibslist.append(0)
-            afibsdict[i] = ibslist
-        # get mean
+                        ibsarray[ind, freq-1] = 0
+            afibsdict[i] = np.mean(ibsarray, axis=0)
+        # fold and export to list
         ibsstats = []
         if fold:
             for i, p in enumerate(pix):
-                ibs_mean = np.mean(afibsdict[i], axis=0)
-                ibs_meanr = np.flip(ibs_mean, axis=0)
-                ibs_fold = (ibs_mean + ibs_meanr) / 2
-                ibs = ibs_fold[0:len(p)]
+                ibs_flip = np.flip(afibsdict[i], axis=0)
+                ibs_fold = (ibs_flip + afibsdict[i]) / 2
+                haps = len(p)/2
+                ibs = ibs_fold[0:haps]
                 ibsstats.append(ibs)
         else:
             for i in range(len(pix)):
-                ibs = np.mean(afibsdict[i], axis=0)
-                ibsstats.append(ibs)
+                ibsstats.append(afibsdict[i])
         return(ibsstats)

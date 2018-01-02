@@ -1,35 +1,20 @@
 # -*- coding: utf-8 -*-
 """This script calculated summary statistic from a vcf file. These statistics
 are observed summary statistics for ABC inference via ABCrf or abc in R.
-Contents:
-    LD: using popsizeABC, format VCF
-    IBS: using popsizeABC, format VCF
-
-    SFS: using dadi, vcf2dadi
-    jSFS: using dadi, vcf2dadi
-    Tajima's D: using dadi, vcf2dadi
-    Fst: using dadi, vcf2dadi
-
-    bSFS: using ABLE, vcf2able
-    jbSFS: using ABLE, vcf2able
-
-    WCFST: popstats.py, vcf2tped
-    FST: popstats.py, vcf2tped
-    F2: popstats.py, vcf2tped
-    F3: popstats.py, vcf2tped
-    F4: popstats.py, vcf2tped
 """
+from __future__ import print_function
 from gwas import IO
 from gwas import data
 from gwas import summary_stat as ss
 import numpy as np
-import dadi
+import gzip
 from collections import defaultdict
 from itertools import combinations
+import dadi
 
 
-class Dadistats:
-    """stats from dadi package
+class SFSstats:
+    """Stats from dadi package
     """
 
     def __init__(self, sfs, jsfs, tajd, fst):
@@ -38,8 +23,8 @@ class Dadistats:
         self.tajd = {}
         self.fst = {}
 
-    def dadi_obs(self, infile, pedfile, mask=True, fold=True):
-        """
+    def sfs_obs(self, infile, pedfile, mask=True, fold=True):
+        """Calculates stats from dadi infile
         """
         # sample sizes in diploid
         # Haiti 7
@@ -92,30 +77,48 @@ class Dadistats:
         self.sfs = sfs
         self.tajd = tajd
         self.fst = fst
-        # 23 summary stats from Naduvilezhath 2011
-        s1 = np.sum(fs[0, 1:3])
-        s2 = np.sum(fs[1:3, 0])
-        s3 = np.sum(fs[0, 3:-3])
-        s4 = np.sum(fs[3:-3, 0])
-        s5 = np.sum(fs[0, -3:-1])
-        s6 = np.sum(fs[-3:-1, 0])
-        s7 = np.sum(fs[1:3, 1:3])
-        s8 = np.sum(fs[1:3, 3:-3])
-        s9 = np.sum(fs[3:-3, 1:3])
-        s10 = np.sum(fs[-3:-1, 3:-3])
-        s11 = np.sum(fs[3:-3, -3:-1])
-        s12 = np.sum(fs[1:3, -3:-1])
-        s13 = np.sum(fs[-3:-1, 1:3])
-        s14 = np.sum(fs[3:-3, 3:-3])
-        s15 = np.sum(fs[-3:-1, -3:-1])
-        s16 = np.sum(fs[0, -1])
-        s17 = np.sum(fs[-1, 0])
-        s18 = np.sum(fs[-1, 1:3])
-        s19 = np.sum(fs[1:3, -1])
-        s20 = np.sum(fs[-1, 3:-3])
-        s21 = np.sum(fs[3:-3, -1])
-        s22 = np.sum(fs[-1, -3:-1])
-        s23 = np.sum(fs[-3:-1, -1])
+
+    def jSFS_summary(self):
+        """23 summary stats from Naduvilezhath 2011
+        """
+        jsfsdict = {}
+        for pair in self.jsfs.keys():
+            jsfsarray = np.zeros(24)
+            fs = self.jsfs[pair]
+            jsfsarray[0] = np.sum(fs[0, 1:3])
+            jsfsarray[1] = np.sum(fs[1:3, 0])
+            jsfsarray[2] = np.sum(fs[0, 3:-3])
+            jsfsarray[3] = np.sum(fs[3:-3, 0])
+            jsfsarray[4] = np.sum(fs[0, -3:-1])
+            jsfsarray[5] = np.sum(fs[-3:-1, 0])
+            jsfsarray[6] = np.sum(fs[1:3, 1:3])
+            jsfsarray[7] = np.sum(fs[1:3, 3:-3])
+            jsfsarray[8] = np.sum(fs[3:-3, 1:3])
+            jsfsarray[9] = np.sum(fs[-3:-1, 3:-3])
+            jsfsarray[10] = np.sum(fs[3:-3, -3:-1])
+            jsfsarray[11] = np.sum(fs[1:3, -3:-1])
+            jsfsarray[12] = np.sum(fs[-3:-1, 1:3])
+            jsfsarray[13] = np.sum(fs[3:-3, 3:-3])
+            jsfsarray[14] = np.sum(fs[-3:-1, -3:-1])
+            jsfsarray[15] = np.sum(fs[0, -1])
+            jsfsarray[16] = np.sum(fs[-1, 0])
+            jsfsarray[17] = np.sum(fs[-1, 1:3])
+            jsfsarray[18] = np.sum(fs[1:3, -1])
+            jsfsarray[19] = np.sum(fs[-1, 3:-3])
+            jsfsarray[20] = np.sum(fs[3:-3, -1])
+            jsfsarray[21] = np.sum(fs[-1, -3:-1])
+            jsfsarray[22] = np.sum(fs[-3:-1, -1])
+            # jsfsarray[23] = self.fst[pair]
+            jsfsdict[pair] = jsfsarray
+        return(jsfsdict)
+
+    def summarywrite(self, jsfsdict):
+        """Write summary stats to output files
+        """
+        for pair in jsfsdict.keys():
+            np.savetxt("{}.jsfs-fst".format(pair), jsfsdict[pair])
+#        for pop in self.sfs.keys():
+#            np.savetxt("{}.sfs".format(pop), self.sfs[pop])
 
 
 class Popsizeabc:
@@ -124,14 +127,14 @@ class Popsizeabc:
         obsstats(haps, interval_list, chromlist, vcf, list_ani, popsped,
              pop, mac, mac_ld, L, args.out)
     """
-    def __init__(self, pop, ld, ldint, ibs):
+    def __init__(self, pop, afs=None, ld=None, ldints=None, ibs=None):
         self.pop = pop  # x.Popsizeabc("PNG")
+        self.afs = afs
         self.ld = ld
-        self.ldint = ldint
+        self.ldints = ldints
         self.ibs = ibs
 
-    def ldwindow(self, nb_times=21, r=2.9E-9, L=2E6, per_err=5,
-                 Tmax=13000, a=0.06):
+    def ldwindow(self, configdict):
         """Creation of the bins of physical distance for which the average
             LD will be computed, based on the time windows defined above.
 
@@ -148,6 +151,12 @@ class Popsizeabc:
 
             interval_list = ldstats(nb_times, times, r, L, per_err, Tmax
             """
+        nb_times = configdict["nb_times"]
+        r = configdict["recombination_rate"]
+        L = configdict["contig_length"]
+        per_err = configdict["pererr"]
+        Tmax = configdict["tmax"]
+        a = configdict["a"]
         times = -np.ones(shape=nb_times, dtype='float')
         for i in range(nb_times):
             times[i] = (np.exp(np.log(1 + a * Tmax) * i/(nb_times - 1)) - 1)/a
@@ -159,12 +168,13 @@ class Popsizeabc:
                 interval_list.append([d - per_err * d/100,
                                       d + per_err * d/100])
         t = Tmax + times[nb_times - 1] - times[nb_times - 2]
-        d = 10**8/(2 * t)
-        # d = 1/(2*r*t)
+        # d = 10**8/(2 * t)
+        d = 1/(2*r*t)
         interval_list.append([d-per_err * d/100, d + per_err * d/100])
+        self.ldints = interval_list
         return(interval_list)
 
-    def parsevcf(self, vcf, chrlist, popsped, mac=0, mac_ld=0):
+    def parsevcf(self, vcfFile, chrlist, popsped, mac, mac_ld):
         """
         Parameters
         ------
@@ -180,9 +190,11 @@ class Popsizeabc:
                 if p[0] in self.pop:
                     list_ani.append(p[1])
         chromlist = []
+        chrlen = []
         with open(chrlist, 'r') as chrm:
             for line in chrm:
-                chromlist.append(line.strip())
+                chromlist.append(line.strip().split()[0])
+                chrlen.append(int(line.strip().split()[1]))
         count_list = []
         pos_list = []  # for ld
         geno_list = []  # for ld
@@ -190,8 +202,19 @@ class Popsizeabc:
         Lchr = 0
         for chrom in chromlist:
             # store data and pre-analyse it
+            f = gzip.open("{}.{}.vcf.gz".format(vcfFile, chrom), 'w')
             print("Processing chromosome,{}".format(chrom))
-            infile_vcf = "{}/{}.vcf.gz".format(vcf, chrom)
+            print(chrom)
+            with gzip.open("{}.vcf.gz".format(vcfFile), 'r') as vcf:
+                for line in vcf:
+                    if line.startswith("#"):
+                        f.write(line)
+                    else:
+                        x = line.strip().split()
+                        if x[0] == chrom:
+                            f.write(line)
+            f.close()
+            infile_vcf = "{}.{}.vcf.gz".format(vcfFile, chrom)
             [mydata, mymap] = IO.parseVcfFile(infile_vcf, includeInd=list_ani)
             pedfile = popsped
             IO.parsePedFile_nogeno(pedfile, mydata)
@@ -203,9 +226,9 @@ class Popsizeabc:
             u = data.Genos_and_counts(mydata, mymap, self.pop, mac=mac_ld)
             pos_list.append(u[0][0])
             geno_list.append(u[2][0])
-        return(pos_list, geno_list, Lchr, nb_snp)
+        return(pos_list, geno_list, count_list, Lchr, nb_snp, chrlen)
 
-    def ldstats(self, vcf, chrlist, popsped, L=2E6):
+    def ldstats(self, vcf, chrlist, popsped, configdict, pix):
         """program to calc summary stats from vcf
 
             Parameters:
@@ -218,25 +241,75 @@ class Popsizeabc:
             Returns:
                 file: file with string of stats
         """
-        size_list = [1]
-        prob_list = [0.0001, 0.001, 0.01, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99,
-                     0.999, 0.9999]
-        interval_list = self.ldstats()
-        self.ldint = interval_list
-        pos_list, geno_list, Lchr, nb_snp = self.parsevcf(vcf, chrlist,
-                                                          popsped)
-        # compute summary statistics
+        L = configdict["contig_length"]
+        interval_list = self.ldwindow(configdict)
+        pos_list, geno_list, count_list, Lchr, nb_snp, chrlen = self.parsevcf(vcf, chrlist,
+                                                                              popsped, configdict["mac"],
+                                                                              configdict["mac_ld"])
+        haps = configdict["sample_size"][pix]
+        res_afs = ss.histo(count_list, int(haps/2))
+        # afs = np.insert(res_afs, 0, np.float(nb_snp)/np.float(Lchr))
         u = ss.break_chr(pos_list, geno_list, L)
         pos_list = u[0]
         geno_list = u[1]
         res_ld_zyg = ss.distrib_zyg_r2(pos_list, geno_list, interval_list)
         self.ld = res_ld_zyg
-        res_ibs = ss.ibs_quantiles_from_geno(size_list[0], pos_list, geno_list,
-                                             prob_list, dmax=L)
-        for m in size_list[1:]:
-            res_ibs = np.concatenate((res_ibs, ss.ibs_quantiles_from_geno(m,
-                                      pos_list, geno_list, prob_list, dmax=L)))
-        self.ibs = res_ibs
-        # fnp = np.array([np.float(nb_snp)/np.float(Lchr)], dtype='float')
-        # np.savetxt(fname, np.concatenate((fnp, res_afs, res_ld_zyg[0])),
-        #           fmt='%.3e')
+        self.afs = res_afs
+        ibs = self.ibsStats(self, pos_list, geno_list, chrlen)
+        self.ibs = ibs
+        return(None)
+
+    def ibsStats(self, pos_list, geno_list, chrlen, fold=True):
+        """program to calc summary stats from vcf
+
+            Parameters:
+                pos_list: array, array of position of each snp
+                geno_list: array, array of genotypes
+                Lchr: int, total bases
+                nb_snp: int, total snps
+
+            Returns:
+                file: file with string of stats
+        """
+        inds = geno_list[0].shape[0]
+        ibssfslist = []
+        for i in range(0, len(geno_list)):
+            ibslist = []
+            for freq in range(1, inds * 2):
+                ibs = 0
+                # snp position only
+                het = np.sum(geno_list[i], axis=0) > 0  # mask
+                # positions of snps
+                poslist = pos_list[i][het]  # genome positions not index
+                # freq of snp positions
+                freqlist = np.sum(geno_list[i], axis=0)[het]
+                mut_ix = np.where(freqlist == freq)[0]
+                for m in mut_ix:
+                    if poslist[m] == 0:
+                        ibs += poslist[m + 1]
+                    else:
+                        try:
+                            ibs += poslist[m + 1] - poslist[m - 1]
+                        except IndexError:
+                            ibs += chrlen[i] - poslist[m - 1]
+                try:
+                    ibslist.append(ibs / len(mut_ix))
+                except ZeroDivisionError:
+                    ibslist.append(0)
+            ibssfslist.append(ibslist)
+        if fold:
+            ibs_mean = np.mean(ibssfslist, axis=0)
+            ibs_meanr = np.flip(ibs_mean, axis=0)
+            ibs_fold = (ibs_mean + ibs_meanr) / 2
+            ibs = ibs_fold[0:inds]
+        else:
+            ibs = np.mean(ibssfslist, axis=0)
+        return(ibs)
+
+    def printstats(self, pop):
+        """Prints stats per popualtion from vcf
+        """
+        np.savetxt("pop.afs-ld.obs", np.concatenate((self.afs, self.ld[0])),
+                   fmt='%.3e')
+        print("{}".format(self.ldints))
+        return(None)

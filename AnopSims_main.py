@@ -11,19 +11,19 @@ import sys
 import numpy as np
 import msprime as msp
 import allel
+from collections import defaultdict
 try:
     import configparser
 except ImportError:
     import ConfigParser as configparser
-#import anopModels
-#import anopParams
+from anopParams import drawParams
+from anopModels import Model
 #import anopStats
 import argparse
-# check version
-if sys.version_info[0] < 3:
-    raise "Must be using Python 3"
-assert msp.__version__ == "0.4.0"
-assert allel.__version__ == "1.1.9"
+# check versions
+assert sys.version_info[0] >= 3
+assert msp.__version__ == "0.6.0"
+assert allel.__version__ == "1.1.10"
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-cfg', "--configFile", required=True,
@@ -33,6 +33,21 @@ parser.add_argument('-m', "--model_ix", type=int, required=True,
 parser.add_argument('-i', "--iterations", type=int, required=True,
                     help="number of iterations")
 args = parser.parse_args()
+
+
+def checkDemo(popconfig, migmat, demoevents):
+    """Print out demography for debugging
+    """
+    #f = open("demographyHistory.txt", 'a')
+    mig = list(migmat)
+    dd = msp.DemographyDebugger(
+        population_configurations=popconfig,
+        migration_matrix=mig,
+        demographic_events=demoevents)
+    dd.print_history()
+    #f.write("{}".format(dd.print_history()))
+    #f.close()
+    return(None)
 
 
 def writeABC(stats_file, stats_out, params_out):
@@ -53,31 +68,35 @@ def writeABC(stats_file, stats_out, params_out):
     return(stats_file)
 
 
-def simulate(model, growthdict, ix, paramlist, thetaarray, rhoarray, statsFile):
+def simulate(model, demodict, ix, parfx, parlist, thetaarray, rhoarray):
     """Runs msprime with model
     """
-    params = anopParams(ix, paramlist)
-    treearray = np.array(model["loci"])
+    treelist = []
     # simulate
     for loc in range(model["loci"]):
         Ne = np.random.choice(thetaarray)/(4*model["mutation_rate"])
-        dem_events = anopModels(ix, params, growthdict)
+        params = [p() for p in parfx]
+        # avoid exactly equal times by small perturbation
+        while len(params) != len(set(params)):
+            params = [i + np.random.randint(0, 10) for i in params]
+        m = Model()
+        dem_events = m.genDem(ix, params, demodict, parlist, Ne)
         recomb = np.random.choice(rhoarray)/(4*Ne)
-        ts = msp.simulation(
-                            population_configurations=model["pop_config"],
-                            demographic_events=dem_events,
-                            Ne=Ne,
-                            migration_matrix=model["migMat"],
-                            length=model["contig_length"],
-                            mutation_rate=model["mutation_rate"],
-                            recombination_rate=recomb,
-                            random_seed=np.random.randint(1, 1000001),
-                            num_replicates=1
-                            )
-        treearray[loc] = ts
-    stats_out = anopStats(treearray)
-    statsFile = writeABC(statsFile, stats_out, params, ix)
-    return(statsFile)
+        checkDemo(model["pop_config"], model["migMat"], dem_events)
+        import ipdb;ipdb.set_trace()
+        ts = msp.simulate(
+                          population_configurations=model["pop_config"],
+                          demographic_events=dem_events,
+                          Ne=Ne,
+                          migration_matrix=model["migMat"],
+                          length=model["contig_length"],
+                          mutation_rate=model["mutation_rate"],
+                          recombination_rate=recomb,
+                          )
+        treelist.append(ts)
+    # stats_out = anopStats(treearray)
+    # writeABC(stats_out, params, ix)
+    return(None)
 
 
 def setInitial(sampleSize, intitialSize, growthRate):
@@ -141,19 +160,19 @@ if __name__ == "__main__":
     migration_matrix = np.genfromtxt(migFile, delimiter=",")
     #
     demoFile = config.get(sh, "demographic_file")
-    growthdict = {}
+    demodict = defaultdict(list)
     with open(demoFile, 'r') as f:
         for line in f:
             key, *val = line.split()
-            growthdict[int(key)] = [float(val[0]), val[1]]
+            demodict[int(key)].append([float(val[0]), val[1]])
     #
     sh = "parameters"
     thetaFile = config.get(sh, "theta_distribution")
     thetaarray = np.loadtxt(thetaFile)
     rhoFile = config.get(sh, "rho_distribution")
     rhoarray = np.loadtxt(rhoFile)
-    params = None
-
+    paramFile = config.get(sh, "params")
+    parfx, parlist = drawParams(paramFile)
     # start functions
     popcfg = setInitial(sampleSize, initialSize, growthRate)
     model = {"contig_length": contiglen,
@@ -161,20 +180,19 @@ if __name__ == "__main__":
              "recombination_rate": recombRate,
              "mutation_rate": mutationRate,
              "loci": loci,
-             "migMat": migration_matrix,
+             "migMat": migration_matrix.tolist(),
              "pop_config": popcfg}
     # open file
-    statsFile = open("ABCsims.model-{}.txt".format(args.model_ix), 'w')
+    # statsFile = open("ABCsims.model-{}.txt".format(args.model_ix), 'w')
     for i in range(args.iterations):
-        statsFile = simulate(model,
-                             growthdict,
-                             args.model_ix,
-                             params,
-                             thetaarray,
-                             rhoarray,
-                             statsFile
-                             )
-    statsFile.close()
+        simulate(model,
+                 demodict,
+                 args.model_ix,
+                 parfx,
+                 parlist,
+                 thetaarray,
+                 rhoarray
+                 )
 ##        scrm_base = ("scrm {nhaps} 1 -t {theta} -r {rho} {basepair} "
 ##                     "-G {exp_growth} -eG {time_growth} 0.0 -SC abs -p"
 ##                     " {sig_digits} ")

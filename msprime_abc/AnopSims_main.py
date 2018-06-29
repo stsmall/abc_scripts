@@ -7,6 +7,8 @@ anopSims_main.py --cfg FILE.cfg --model 1
 
 @author: stsmall
 """
+from __future__ import print_function
+from __future__ import division
 import sys
 import numpy as np
 import msprime as msp
@@ -21,7 +23,7 @@ from anopModels import Model
 #import anopStats
 import argparse
 # check versions
-assert sys.version_info[0] >= 3
+#assert sys.version_info[0] >= 3
 assert msp.__version__ == "0.6.0"
 assert allel.__version__ == "1.1.10"
 
@@ -74,20 +76,20 @@ def simulate(model, demodict, ix, parfx, parlist, thetaarray, rhoarray):
     treelist = []
     # simulate
     for loc in range(model["loci"]):
-        Ne = np.random.choice(thetaarray)/(4*model["mutation_rate"])
+        Ne = int(np.round((np.random.choice(thetaarray)/(4*model["mutation_rate"]))))
         params = [p() for p in parfx]
         # avoid exactly equal times by small perturbation
         while len(params) != len(set(params)):
-            params = [i + np.random.randint(0, 10) for i in params]
+            params = [i + np.random.randint(-10, 10) for i in params]
         m = Model()
-        dem_events = m.genDem(ix, params, demodict, parlist, Ne)
+        dem_events = m.genDem(ix, params, demodict, parlist, Ne, model["mMax"], model["mIso"])
         recomb = np.random.choice(rhoarray)/(4*Ne)
-        checkDemo(model["pop_config"], model["migMat"], dem_events)
         import ipdb;ipdb.set_trace()
+        checkDemo(model["pop_config"], model["migMat"], dem_events)
         ts = msp.simulate(
                           population_configurations=model["pop_config"],
                           demographic_events=dem_events,
-                          Ne=Ne,
+                          Ne=model["Ne"],
                           migration_matrix=model["migMat"],
                           length=model["contig_length"],
                           mutation_rate=model["mutation_rate"],
@@ -99,7 +101,7 @@ def simulate(model, demodict, ix, parfx, parlist, thetaarray, rhoarray):
     return(None)
 
 
-def setInitial(sampleSize, intitialSize, growthRate):
+def setInitial(sampleSize, intitialSize, growthRate, scrm=True):
     """Set initial population sizes, growth rates, and samples
 
     Parameters
@@ -114,28 +116,37 @@ def setInitial(sampleSize, intitialSize, growthRate):
 
     """
     # inital effective sizes
-    N_fun, N_like, N_van, N_par, N_long = initialSize
+    N_fun, N_like, N_van, N_lon, N_par, N_riv = initialSize
     # sample size as diploid
-    S_fun, S_like, S_van, S_par, S_long = sampleSize
+    S_fun, S_like, S_van, S_lon, S_par, S_riv = sampleSize
     # intial growth rates
-    G_fun, G_like, G_van, G_par, G_long = growthRate
-    pop_config = [
-                  msp.PopulationConfiguration(sample_size=S_fun,
-                                              initial_size=N_fun,
-                                              growth_rate=G_fun),
-                  msp.PopulationConfiguration(sample_size=S_like,
-                                              initial_size=N_like,
-                                              growth_rate=G_like),
-                  msp.PopulationConfiguration(sample_size=S_van,
-                                              initial_size=N_van,
-                                              growth_rate=G_van),
-                  msp.PopulationConfiguration(sample_size=S_par,
-                                              initial_size=N_par,
-                                              growth_rate=G_par),
-                  msp.PopulationConfiguration(sample_size=S_long,
-                                              initial_size=N_long,
-                                              growth_rate=G_long)
-                  ]
+    G_fun, G_like, G_van, G_lon, G_par, G_riv = growthRate
+    if scrm:
+        sum(sampleSize) 1 -t 4*Ne*model["mutation_rate"] -r rho*length
+        pop_config =
+
+    else:
+        pop_config = [
+                      msp.PopulationConfiguration(sample_size=S_fun,
+                                                  initial_size=N_fun,
+                                                  growth_rate=G_fun),
+                      msp.PopulationConfiguration(sample_size=S_like,
+                                                  initial_size=N_like,
+                                                  growth_rate=G_like),
+                      msp.PopulationConfiguration(sample_size=S_van,
+                                                  initial_size=N_van,
+                                                  growth_rate=G_van),
+                      msp.PopulationConfiguration(sample_size=S_lon,
+                                                  initial_size=N_lon,
+                                                  growth_rate=G_lon),
+                      msp.PopulationConfiguration(sample_size=S_par,
+                                                  initial_size=N_par,
+                                                  growth_rate=G_par),
+                      msp.PopulationConfiguration(sample_size=S_riv,
+                                                  initial_size=N_riv,
+                                                  growth_rate=G_riv)
+                      ]
+
     return(pop_config)
 
 
@@ -146,7 +157,6 @@ if __name__ == "__main__":
     sh = "simulation"
     contiglen = config.getint(sh, "contiglen")
     loci = config.getint(sh, "loci")
-    iterations = config.getint(sh, "iterations")
     recombRate = config.getfloat(sh, "recombination_rate")
     mutationRate = config.getfloat(sh, "mutation_rate")
     effectiveSize = config.getint(sh, "effective_population_size")
@@ -159,12 +169,8 @@ if __name__ == "__main__":
     migFile = config.get(sh, "migration_matrix")
     migration_matrix = np.genfromtxt(migFile, delimiter=",")
     #
-    demoFile = config.get(sh, "demographic_file")
-    demodict = defaultdict(list)
-    with open(demoFile, 'r') as f:
-        for line in f:
-            key, *val = line.split()
-            demodict[int(key)].append([float(val[0]), val[1]])
+    mMax = config.getfloat(sh, "mMax")
+    mIso = config.getint(sh, "mIso")
     #
     sh = "parameters"
     thetaFile = config.get(sh, "theta_distribution")
@@ -172,7 +178,7 @@ if __name__ == "__main__":
     rhoFile = config.get(sh, "rho_distribution")
     rhoarray = np.loadtxt(rhoFile)
     paramFile = config.get(sh, "params")
-    parfx, parlist = drawParams(paramFile)
+    parfx, parlist, demodict = drawParams(paramFile)
     # start functions
     popcfg = setInitial(sampleSize, initialSize, growthRate)
     model = {"contig_length": contiglen,
@@ -181,9 +187,10 @@ if __name__ == "__main__":
              "mutation_rate": mutationRate,
              "loci": loci,
              "migMat": migration_matrix.tolist(),
-             "pop_config": popcfg}
-    # open file
-    # statsFile = open("ABCsims.model-{}.txt".format(args.model_ix), 'w')
+             "pop_config": popcfg,
+             "mMax": mMax,
+             "mIso": mIso
+             }
     for i in range(args.iterations):
         simulate(model,
                  demodict,

@@ -1,9 +1,0 @@
-# t_01, N_01, t_43, N_43, t_23, N_23, t_13, N_13
-t01 uniform_int 100000 10000000
-N01 uniform_int 100000 1000000
-t43 uniform_int 10000 1000000
-N43 uniform_int 100000 1000000
-t23 uniform_int 100000 1000000
-N23 uniform_int 100000 1000000
-t13 uniform_int 100000 1000000
-N13 uniform_int 100000 1000000

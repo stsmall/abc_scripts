@@ -1,11 +1,30 @@
-# t_01, N_01, t_43, N_43, t_23, N_23, t_13, N_13
-t_01 uniform_int 100000 10000000
-N_01 uniform_int 100000 1000000
-t_43 uniform_int 10000 1000000
-N_43 uniform_int 100000 1000000
-t_23 uniform_int 100000 1000000
-N_23 uniform_int 100000 1000000
-t_13 uniform_int 100000 1000000
-N_13 uniform_int 100000 1000000
-mMax constant 0.00001
-mIso constant 7400
+#time pop event params
+#to be inferred Fun 1, Like 2, Van 3, Lon 4, Par 5
+tbi1 ej 21 Uint 8000 18000
+tbi2 ej 45 Uint 40000 255000
+tbi3 ej 35 Uint 646000 1950000
+tbi4 ej 15 Uint 3000000 6000000
+#Fun demography
+13169 Ne 1 207997 0
+20145 Ne 1 134260 0
+29023 Ne 1 111176 0
+54708 Ne 1 138712 -5.5E-6
+449839 Ne 1 None 0
+2489093 Ne 1 None -2.19E-8 
+21918429 Ne 1 None 0
+#Like demography
+13886 Ne 2 45655 -1.6E-7
+23111250 Ne 2 None 0
+#Van demography
+37129 Ne 3 None 0
+1410321 Ne 3 None -3.79E-8
+20181500 Ne 3 None 0
+#Lon demography
+46378 Ne 4 None 1.1E-5
+110776 Ne 4 None 0
+1761650 Ne 4 None -3.31E-8
+25208929 Ne 4 None 0 
+#Par demography
+67440 Ne 5 None 0
+868904 Ne 5 None -5.47E-8
+20244929 Ne 5 None 0

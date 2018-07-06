@@ -74,17 +74,16 @@ def simulate(model, demodict, ix, parfx, parlist, thetaarray, rhoarray):
     """Runs msprime with model
     """
     treelist = []
+    params = [p() for p in parfx]
+    # avoid exactly equal times by small perturbation
+    while len(params) != len(set(params)):
+        params = [i + np.random.randint(-10, 10) for i in params]
     # simulate
     for loc in range(model["loci"]):
         Ne = int(np.round((np.random.choice(thetaarray)/(4*model["mutation_rate"]))))
-        params = [p() for p in parfx]
-        # avoid exactly equal times by small perturbation
-        while len(params) != len(set(params)):
-            params = [i + np.random.randint(-10, 10) for i in params]
         m = Model()
         dem_events = m.genDem(ix, params, demodict, parlist, Ne, model["mMax"], model["mIso"])
         recomb = np.random.choice(rhoarray)/(4*Ne)
-        import ipdb;ipdb.set_trace()
         checkDemo(model["pop_config"], model["migMat"], dem_events)
         ts = msp.simulate(
                           population_configurations=model["pop_config"],
@@ -101,7 +100,7 @@ def simulate(model, demodict, ix, parfx, parlist, thetaarray, rhoarray):
     return(None)
 
 
-def setInitial(sampleSize, intitialSize, growthRate, scrm=True):
+def setInitial(sampleSize, intitialSize, growthRate):
     """Set initial population sizes, growth rates, and samples
 
     Parameters
@@ -116,36 +115,35 @@ def setInitial(sampleSize, intitialSize, growthRate, scrm=True):
 
     """
     # inital effective sizes
-    N_fun, N_like, N_van, N_lon, N_par, N_riv = initialSize
+    N_fun, N_like, N_van, N_lon, N_par = initialSize
+#    N_fun, N_like, N_van, N_lon, N_par, N_riv = initialSize
     # sample size as diploid
-    S_fun, S_like, S_van, S_lon, S_par, S_riv = sampleSize
+    S_fun, S_like, S_van, S_lon, S_par = sampleSize
+#    S_fun, S_like, S_van, S_lon, S_par, S_riv = sampleSize
     # intial growth rates
-    G_fun, G_like, G_van, G_lon, G_par, G_riv = growthRate
-    if scrm:
-        sum(sampleSize) 1 -t 4*Ne*model["mutation_rate"] -r rho*length
-        pop_config =
-
-    else:
-        pop_config = [
-                      msp.PopulationConfiguration(sample_size=S_fun,
-                                                  initial_size=N_fun,
-                                                  growth_rate=G_fun),
-                      msp.PopulationConfiguration(sample_size=S_like,
-                                                  initial_size=N_like,
-                                                  growth_rate=G_like),
-                      msp.PopulationConfiguration(sample_size=S_van,
-                                                  initial_size=N_van,
-                                                  growth_rate=G_van),
-                      msp.PopulationConfiguration(sample_size=S_lon,
-                                                  initial_size=N_lon,
-                                                  growth_rate=G_lon),
-                      msp.PopulationConfiguration(sample_size=S_par,
-                                                  initial_size=N_par,
-                                                  growth_rate=G_par),
-                      msp.PopulationConfiguration(sample_size=S_riv,
-                                                  initial_size=N_riv,
-                                                  growth_rate=G_riv)
-                      ]
+    G_fun, G_like, G_van, G_lon, G_par = growthRate
+ #   G_fun, G_like, G_van, G_lon, G_par, G_riv = growthRate
+    pop_config = [
+                  msp.PopulationConfiguration(sample_size=S_fun,
+                                              initial_size=N_fun,
+                                              growth_rate=G_fun),
+                  msp.PopulationConfiguration(sample_size=S_like,
+                                              initial_size=N_like,
+                                              growth_rate=G_like),
+                  msp.PopulationConfiguration(sample_size=S_van,
+                                              initial_size=N_van,
+                                              growth_rate=G_van),
+                  msp.PopulationConfiguration(sample_size=S_lon,
+                                              initial_size=N_lon,
+                                              growth_rate=G_lon),
+                  msp.PopulationConfiguration(sample_size=S_par,
+                                              initial_size=N_par,
+                                              growth_rate=G_par)
+                  ]
+#                msp.PopulationConfiguration(sample_size=S_riv,
+#                                              initial_size=N_riv,
+#                                              growth_rate=G_riv)
+#                  ]
 
     return(pop_config)
 
@@ -200,7 +198,3 @@ if __name__ == "__main__":
                  thetaarray,
                  rhoarray
                  )
-##        scrm_base = ("scrm {nhaps} 1 -t {theta} -r {rho} {basepair} "
-##                     "-G {exp_growth} -eG {time_growth} 0.0 -SC abs -p"
-##                     " {sig_digits} ")
-##        mscmd = scrm_base.format(**ms_params)

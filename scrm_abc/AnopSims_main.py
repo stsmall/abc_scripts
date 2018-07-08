@@ -73,22 +73,29 @@ def writeABC(stats, seed, scrmline, params, ix, block, filetpath, mfile,
     theta = x[4]
     rho = x[6]
     if ix == 1:
-        # 'ej21 ej45 ej35 ej15 NA NA NA NA NA NA NA'
-        nalist = 'NA ' * 7
+        # 'ej21 ej45 NA ej35 NA ej15 NA NA NA NA NA'
+        params.insert(2, 'NA')
+        params.insert(4, 'NA')
+        nalist = 'NA ' * 5
     elif ix == 2:
-        # 'ej21 ej45 ej35 ej15 NA NA NA NA NA NA NA'
-        nalist = 'NA ' * 7
+        # 'ej21 ej45 NA ej35 NA ej15 NA NA NA NA NA'
+        params.insert(2, 'NA')
+        params.insert(4, 'NA')
+        nalist = 'NA ' * 5
     elif ix == 3:
-        # 'ej21 ej45 ej35 ej15 ej65 NA NA NA NA NA NA'
-        nalist = 'NA ' * 6
+        # 'ej21 ej45 NA ej35 NA ej15 NA NA NA NA NA'
+        params.insert(2, 'NA')
+        params.insert(4, 'NA')
+        nalist = 'NA ' * 5
     elif ix == 4:
-        # 'ej21 ej45 es3 ej15 ej65 esa3 NA NA NA NA NA'
+        # 'ej21 ej45 NA es3 esa ej15 NA NA NA NA NA'
+        params.insert(2, 'NA')
         nalist = 'NA ' * 5
     elif ix == 5:
-        # 'ej21 es4 es3 ej15 ej65 esa3 esa4 NA NA NA NA'
-        nalist = 'NA ' * 4
+        # 'ej21 es4 esa4 es3 esa3 ej15 NA NA NA NA NA'
+        nalist = 'NA ' * 5
     elif ix == 6:
-        # 'NA es4 es3 ej15 ej65 esa3 esa4 tm21 m12 m21 tm12'
+        # 'NA es4 esa4 es3 es3a ej15 ej25 em m12 m21 em'
         nalist = ''
         params.insert(0, 'NA')
     else:

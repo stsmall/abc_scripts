@@ -46,7 +46,6 @@ class Model(object):
             od = OrderedDict(sorted(dd.items()))
             # build models
             dem_list = self.model_scrm(od, Ne, npops)
-
         else:
             migdict = self.gradIso(timedict, Ne, mMax, mIso)
             dd = defaultdict(list)
@@ -67,17 +66,20 @@ class Model(object):
         migdict = defaultdict(list)
         tsc = mIso/(4*Ne)
         for td in list(timedict.keys()):
-            # ts = mIso_list  # list of different speciation/isolation times
-            tdc = td/(4*Ne)
-            if tdc-tsc < 0:
-                tlin = np.linspace(0, tdc, t_ints)
-                mlist = [(NemMax/(tdc+tsc))*(t+tsc) for t in tlin]
+            if 'ej' in timedict[td][0][0] or 'es' in timedict[td][0][0]:
+                # ts = mIso_list  # list of different speciation/isolation times
+                tdc = td/(4*Ne)
+                if tdc-tsc < 0:
+                    tlin = np.linspace(0, tdc, t_ints)
+                    mlist = [(NemMax/(tdc+tsc))*(t+tsc) for t in tlin]
+                else:
+                    tlin = np.linspace(tdc-tsc, tdc, t_ints)
+                    # tlist = [np.round(t) for t in tlin]
+                    mlist = [(NemMax/(tdc-(tdc-tsc)))*(t-(tdc-tsc)) for t in tlin]
+                for t, m in zip(tlin, mlist):
+                    migdict[np.round(t*4*Ne)].append(['mg' + timedict[td][0][0][2:], m/(4*Ne)])
             else:
-                tlin = np.linspace(tdc-tsc, tdc, t_ints)
-                # tlist = [np.round(t) for t in tlin]
-                mlist = [(NemMax/(tdc-(tdc-tsc)))*(t-(tdc-tsc)) for t in tlin]
-            for t, m in zip(tlin, mlist):
-                migdict[np.round(t*4*Ne)].append(['mg' + timedict[td][0][0][2:], m/(4*Ne)])
+                pass
         return(migdict)
 
     def modelMig_scrm(self, od, Ne, npops):

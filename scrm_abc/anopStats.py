@@ -10,7 +10,9 @@ from __future__ import division
 from subprocess import run, PIPE
 import numpy as np
 import allel
+import sys
 from itertools import combinations
+#import multiprocessing
 
 
 class SimStats:
@@ -117,23 +119,21 @@ class SimStats:
             fakems = []
             fakems.append("ms {} {} -t tbs -r tbs {} -I 2 {} {}\n1234\n".format(n1+n2, loci, block, n1, n2))
             for i, g in enumerate(self.gtlist):
-                gt = allel.HaplotypeArray(g.transpose())
-                gt12 = gt.take(pop1+pop2, axis=1)
-                ac = gt12.count_alleles()
-                seg_pos = ac.is_segregating()
-                seg = np.count_nonzero(seg_pos)
-                gt_seg = gt.compress(seg_pos, axis=0)
-                posit = self.pos[i][seg_pos]
-                fakems.append("\n//\nsegsites: {}\npositions: {}\n".format(seg, " ".join(map(str, posit))))
-                # this needs to be retransposed using g12_seg and pop1 pop2
-                gt1 = gt_seg.take(pop1, axis=1)
-                for hap in gt1.transpose():
-                    fakems.append("{}\n".format("".join(map(str, hap))))
-                gt2 = gt_seg.take(pop2, axis=1)
-                for hap in gt2.transpose():
-                    fakems.append("{}\n".format("".join(map(str, hap))))
+                gt = g[pop1+pop2]
+                seg_pos = np.sum(gt, axis=0)
+                seg_mask = (seg_pos > 0) & (seg_pos < (n1+n2))
+                seg = np.count_nonzero(seg_mask)
+                posit = self.pos[i][seg_mask]
+                gt_seg = gt[:, seg_mask]
+                fakems.append("\n//\nsegsites: {}\npositions: {}\n".format(seg,
+                              " ".join(map(str, posit))))
+                for a in gt_seg:
+                    fakems.append("{}\n".format("".join(map(str, a))))
             msinput = "".join(fakems)
-            cmd = ["{}/twoPopnStats_forML".format(filetpath), str(n1), str(n2)]
+#            f = open('ftest', 'w')
+#            f.write(msinput)
+#            f.close()
+            cmd = ["{}twoPopnStats_forML".format(filetpath), str(n1), str(n2)]
             proc = run(cmd, stdout=PIPE, input=msinput, encoding='ascii')
             lstats = proc.stdout.rstrip().split('\n')[1:]
             filetlist = [list(map(float, l.split())) for l in lstats]

@@ -10,6 +10,7 @@ from __future__ import division
 import numpy as np
 from collections import defaultdict
 from functools import partial
+import re
 
 
 def unif(low, high):
@@ -67,54 +68,58 @@ def drawParams(paramsFile):
     parfx = []
     parlist = []
     demodict = defaultdict(list)
+    pattern = re.compile(r'r[aA-zZ]* \d*\.?\d* \d*\.?\d*')
     with open(paramsFile, 'r') as par:
         for line in par:
             if line.startswith("#"):
                 pass
             elif line.startswith("tbi"):
                 x = line.split()
-                if "U" in x[3]:
-                    if "int" in x[3]:
-                        # divergence, Ne
-                        parlist.append("{}{}".format(x[1], x[2]))
-                        low = int(x[4])
-                        high = int(x[5])
-                        parfx.append(partial(unifint, low, high+1))
-                    elif "flt" in x[3]:
-                        # inheritance
-                        parlist.append("{}{}".format(x[1], x[2]))
-                        low = float(x[4])
-                        high = float(x[5])
-                        parfx.append(partial(unif, low, high))
-                elif "N" in x[3]:
-                    if "int" in x[3]:
-                        # more confidence in prior for divergence, Ne
-                        parlist.append("{}{}".format(x[1], x[2]))
-                        mu = int(x[4])
-                        sigma = int(x[5])
-                        parfx.append(partial(normint, mu, sigma))
-                    elif "log" in x[1]:
-                        # draws values from normal, then log tansforms (no 0s)
-                        parlist.append("{}{}".format(x[1], x[2]))
-                        mu = int(x[4])
-                        sigma = int(x[5])
-                        parfx.append(partial(lognormint(mu, sigma)))
-                elif "Beta" in x[3]:
-                    # more confidence on inheritance
-                    parlist.append("{}{}".format(x[1], x[2]))
-                    a = float(x[4])
-                    b = float(x[5])
-                    parfx.append(partial(beta, a, b))
-                elif "C" in x[3]:
-                    parlist.append("{}{}".format(x[1], x[2]))
-                    if "." in x[4]:
-                        c = float(x[4])
+                parlist.append("{}{}".format(x[1], x[2]))
+                rDist = re.findall(pattern, line)
+                parPart = []
+                for r in rDist:
+                    y = r.split()
+                    if "U" in y[0]:
+                        if "int" in y[0]:
+                            # divergence, Ne
+                            low = int(y[1])
+                            high = int(y[2])
+                            parPart.append(partial(unifint, low, high+1))
+                        elif "flt" in y[0]:
+                            # inheritance
+                            low = float(y[1])
+                            high = float(y[2])
+                            parPart.append(partial(unif, low, high))
+                    elif "N" in y[0]:
+                        if "int" in y[0]:
+                            # more confidence in prior for divergence, Ne
+                            mu = int(y[1])
+                            sigma = int(y[2])
+                            parPart.append(partial(normint, mu, sigma))
+                        elif "log" in y[0]:
+                            # draws values from normal then log tansforms (no 0s)
+                            mu = int(y[1])
+                            sigma = int(y[2])
+                            parPart.append(partial(lognormint(mu, sigma)))
+                    elif "B" in y[0]:
+                        # more confidence on inheritance
+                        a = float(y[1])
+                        b = float(y[2])
+                        parPart.append(partial(beta, a, b))
+                    elif "C" in y[0]:
+                        if "." in y[1]:
+                            c = float(y[1])
+                        else:
+                            c = int(y[1])
+                        parPart.append(partial(constant, c))
                     else:
-                        c = int(x[4])
-                    parfx.append(partial(constant, c))
+                        print("not a recognized distribution")
+                        raise ValueError
+                if len(rDist) > 1:
+                    parfx.append(parPart)
                 else:
-                    print("not a distribution")
-                    raise ValueError
+                    parfx.append(parPart[0])
             else:
                 x = line.split()
                 demodict[int(x[0])].append(["{}{}".format(x[1], x[2]), x[3], x[4]])

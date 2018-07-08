@@ -3,13 +3,14 @@
 """
 Created on Wed Jun 20 17:21:53 2018
 
-anopSims_main.py --cfg FILE.cfg --model 1
+anopSims_main.py --cfg FILE.cfg --model 1 -i 1
 
 @author: stsmall
 """
 from __future__ import print_function
 from __future__ import division
 import sys
+import os
 import numpy as np
 import allel
 try:
@@ -31,13 +32,15 @@ parser.add_argument('-cfg', "--configFile", required=True,
                     help="config file")
 parser.add_argument('-m', "--model_ix", type=int, required=True,
                     help="model index")
-parser.add_argument('-i', "--iterations", type=int, required=True,
+parser.add_argument('-i', "--iterations", type=int, default=1,
                     help="number of iterations")
-parser.add_argument("--filetpath", type=str, help="path to filet exe")
+parser.add_argument("--filet", type=str, help="path to filet exe")
+parser.add_argument("--scrm", type=str, help="path to scrm exe")
 args = parser.parse_args()
 
 
-def writeABC(stats, seed, scrmline, params, ix, block, filetpath, filet=True):
+def writeABC(stats, seed, scrmline, params, ix, block, filetpath, mfile,
+             filet=True):
     """Prints results of simulations and stats to text file
 
     Parameters
@@ -64,31 +67,40 @@ def writeABC(stats, seed, scrmline, params, ix, block, filetpath, filet=True):
     if filet:
         filet_list = stats.filetStats(block, filetpath)
         filetstats = " ".join(map(str, np.concatenate(filet_list).ravel()))
-    f = open("abc.{}.{}.out".format(ix, seed), 'w')
+    abcfile = os.path.join(mfile, "abc.{}.{}.out".format(ix, seed))
+    f = open(abcfile, 'w')
     x = scrmline.split()
     theta = x[4]
     rho = x[6]
     if ix == 1:
-        nalist = 'NA ' * 8
+        # 'ej21 ej45 ej35 ej15 NA NA NA NA NA NA NA'
+        nalist = 'NA ' * 7
     elif ix == 2:
-        nalist = 'NA ' * 8
+        # 'ej21 ej45 ej35 ej15 NA NA NA NA NA NA NA'
+        nalist = 'NA ' * 7
     elif ix == 3:
-        nalist = 'NA ' * 8
+        # 'ej21 ej45 ej35 ej15 ej65 NA NA NA NA NA NA'
+        nalist = 'NA ' * 6
     elif ix == 4:
-        nalist = 'NA ' * 8
+        # 'ej21 ej45 es3 ej15 ej65 esa3 NA NA NA NA NA'
+        nalist = 'NA ' * 5
     elif ix == 5:
-        nalist = 'NA ' * 8
+        # 'ej21 es4 es3 ej15 ej65 esa3 esa4 NA NA NA NA'
+        nalist = 'NA ' * 4
     elif ix == 6:
-        nalist = 'NA ' * 8
+        # 'NA es4 es3 ej15 ej65 esa3 esa4 tm21 m12 m21 tm12'
+        nalist = ''
+        params.insert(0, 'NA')
     else:
         pass
     f.write("{} {} {} {} {} {} {} {} {} {}".format(seed, theta, rho, ix,
-            " ".join(map(str, params)), nalist.rstrip(), asfs, jsfs, tots, filetstats))
+            " ".join(map(str, params)), nalist.rstrip(), asfs, jsfs, tots,
+            filetstats))
     f.close()
     return(None)
 
 
-def simulate(model, demodict, ix, parfx, parlist, thetaarray, rhoarray):
+def simulate(model, demodict, ix, parfx, parlist, thetaarray, rhoarray, scrm):
     """Runs scrm by building 1 file with lines equal to it[eration]s. Each line
     is then executed in the shell and output is printed to a file with
     parameter choices in the file name. The loci parameter controls the size of
@@ -100,19 +112,30 @@ def simulate(model, demodict, ix, parfx, parlist, thetaarray, rhoarray):
     Ne = int(np.round((np.random.choice(thetaarray)/(4*model["mutation_rate"]))))
     theta = 4*Ne*model["mutation_rate"] * model["contig_length"]
     rho = np.random.choice(rhoarray) * model["contig_length"]
-    subpops = "-I {} {} 0".format(len(model["sampleSize"]),' '.join(map(str, (model["sampleSize"]))))
+    npops = len(model["sampleSize"])
+    subpops = "-I {} {} 0".format(npops,' '.join(map(str, (model["sampleSize"]))))
     nesubpops = ["-n {} {}".format(i+1, ne/Ne) for i, ne in enumerate(model["initialSize"])]
     gsubpops = ["-g {} {}".format(i+1, g*4*Ne) for i, g in enumerate(model["growthRate"])]
     miglist = model["migMat"].tolist()
     migmat = [val for sublist in miglist for val in sublist]
-    params = [p() for p in parfx]
-    # avoid exactly equal times by small perturbation
-    while len(params) != len(set(params)):
-        params = [i + np.random.randint(-10, 10) for i in params]
+    params = []
+    for px in parfx:
+        if type(px) is list:
+            params.append([p() for p in px])
+        else:
+            params.append(px())
     m = Model()
-    dem_events = m.genDem(ix, params, demodict, parlist, Ne, model["mMax"], model["mIso"])
+    dem_events = m.genDem(ix,
+                          npops,
+                          params,
+                          demodict,
+                          parlist,
+                          Ne,
+                          model["mMax"],
+                          model["mIso"])
     # all to dict
     ms_params = {
+                'scrm': scrm,
                 'nhaps': sum(model["sampleSize"]),
                 'loci': model["loci"],
                 'theta': theta,
@@ -125,7 +148,7 @@ def simulate(model, demodict, ix, parfx, parlist, thetaarray, rhoarray):
                 'demo': " ".join(dem_events)
                  }
     # scrm command line
-    scrm_base = ("scrm {nhaps} {loci} -t {theta} -r {rho} {basepairs} "
+    scrm_base = ("{scrm}scrm {nhaps} {loci} -t {theta} -r {rho} {basepairs} "
                  "{subpops} {ne_subpop} {growth_subpop} -ma {migmat} {demo} "
                  "-p 12")
     mscmd = scrm_base.format(**ms_params)
@@ -138,6 +161,8 @@ if __name__ == "__main__":
     # =========================================================================
     config = configparser.ConfigParser()
     config.read(args.configFile)
+    mdir = os.path.abspath(args.configFile)
+    mfile = os.path.split(mdir)[0]
     #
     sh = "simulation"
     contiglen = config.getint(sh, "contiglen")
@@ -152,7 +177,7 @@ if __name__ == "__main__":
     growthRate = list(map(float, config.get(sh, "growth_rates").split(",")))
     #
     migFile = config.get(sh, "migration_matrix")
-    migration_matrix = np.genfromtxt(migFile, delimiter=",")
+    migration_matrix = np.genfromtxt(os.path.join(mfile, migFile), delimiter=",")
     assert len(sampleSize) == migration_matrix.shape[0]
     #
     mMax = config.getfloat(sh, "mMax")
@@ -160,11 +185,11 @@ if __name__ == "__main__":
     #
     sh = "parameters"
     thetaFile = config.get(sh, "theta_distribution")
-    thetaarray = np.loadtxt(thetaFile)
+    thetaarray = np.loadtxt(os.path.join(mfile, thetaFile))
     rhoFile = config.get(sh, "rho_distribution")
-    rhoarray = np.loadtxt(rhoFile)
+    rhoarray = np.loadtxt(os.path.join(mfile, rhoFile))
     paramFile = config.get(sh, "params")
-    parfx, parlist, demodict = drawParams(paramFile)
+    parfx, parlist, demodict = drawParams(os.path.join(mfile, paramFile))
     # start functions
     ix = args.model_ix
     model = {"contig_length": contiglen,
@@ -188,7 +213,8 @@ if __name__ == "__main__":
                                  parfx,
                                  parlist,
                                  thetaarray,
-                                 rhoarray)
+                                 rhoarray,
+                                 args.scrm)
         # =====================================================================
         # Parse
         # =====================================================================
@@ -196,7 +222,7 @@ if __name__ == "__main__":
         msout = subprocess.Popen(mscmd, shell=True, stdout=subprocess.PIPE)
         print("\nsim complete ... reading file")
         gtlist, pos, pops, block, scrmline, seed = read_msformat(msout)
-        # gtlist, pos, pops, block, scrmline, seed = read_msformat_file(basename)
+        # gtlist, pos, pops, block, scrmline, seed = read_msformat_file(base)
         # =====================================================================
         # Stats
         # =====================================================================
@@ -206,4 +232,4 @@ if __name__ == "__main__":
         # Write to File
         # =====================================================================
         print("writing stats")
-        writeABC(stats, seed, scrmline, params, ix, block, args.filetpath)
+        writeABC(stats, seed, scrmline, params, ix, block, args.filet, mfile)

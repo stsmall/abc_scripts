@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jun 13 14:43:07 2018
-Class for model building
-@author: stsmall
+Created on Sat Jul  7 18:21:24 2018
+
+@author: scott
 """
 from __future__ import print_function
 from __future__ import division
 import numpy as np
-
 from collections import OrderedDict
 from collections import defaultdict
 
@@ -19,86 +18,50 @@ class Model(object):
         """
         return(None)
 
-    def genDem(self, ix, params, demodict, parlist, Ne, mMax, mIso):
+    def genDem(self, ix, npops, params, demodict, parlist, Ne, mMax, mIso):
         """
         """
-        if ix == 1:
-            dem_list = self.model1_scrm(params, demodict, parlist, Ne)
-        elif ix == 2:
-            dem_list = self.model2_scrm(params, demodict, parlist, Ne, mMax, mIso)
-        elif ix == 3:
-            dem_list = self.model3_scrm(params, demodict, parlist, Ne, mMax, mIso)
-        elif ix == 4:
-            dem_list = self.model3_scrm(params, demodict, parlist, Ne, mMax, mIso)
-        elif ix == 5:
-            dem_list = self.model3_scrm(params, demodict, parlist, Ne, mMax, mIso)
-        elif ix == 6:
-            dem_list = self.model3_scrm(params, demodict, parlist, Ne, mMax, mIso)
-
-        return(dem_list)
-
-    def model1_scrm(self, params, demodict, parlist, Ne):
-        """Simulate speciation followed by isolation
-
-        Parameters
-        ------
-        params: list, list of parameters
-            times, ancestral effective sizes
-        demodict: dict, times and growth rate changes for each species
-            i.e., time: rate
-
-        Returns
-        ------
-        dem_list: list, demography list for msprime simulation
-
-        """
-        dem_list = []
         timedict = defaultdict(list)
         for i, event in enumerate(parlist):
-            if "ej" in event:
-                timedict[params[i]].append([event])
-        dd = defaultdict(list)
-        for d in (timedict, demodict):
-            for key, value in d.items():
-                dd[key].extend(value)
-        od = OrderedDict(sorted(dd.items()))
-        sourcelist = []
-        for k, event in od.items():
-            for v in event:
-                if "ej" in v[0]:
-                    dem_list.append("-ej {} {} {}".format(k/(4*Ne), v[0][2], v[0][3]))
-                    dem_list.append("-eg {} {} {}".format(k/(4*Ne), v[0][2], 0))
-                    sourcelist.append(v[0][2])
-                elif "Ne" in v[0]:
-                    if v[0][2] not in sourcelist:
-                        if v[1] == "None":
-                            dem_list.append("-eg {} {} {}".format(k/(4*Ne), v[0][2], 4*Ne*float(v[2])))
-                        else:
-                            dem_list.append("-en {} {} {}".format(k/(4*Ne), v[0][2], int(v[1])/Ne))
-                            dem_list.append("-eg {} {} {}".format(k/(4*Ne), v[0][2], 4*Ne*float(v[2])))
+            if 'a' in event:
+                # a here means append to previous time
+                if type(params[i-1]) is list:
+                    a = params[i] + params[i-1][0]
+                    timedict[a].append([event[1:]])
+                else:
+                    a = params[i] + params[i-1]
+                    timedict[a].append([event[1:]])
+            else:
+                if type(params[i]) is list:
+                    timedict[params[i][0]].append([event])
+                    for p in params[i][1:]:
+                        timedict[params[i][0]][0].append(p)
+                else:
+                    timedict[params[i]].append([event])
+        if mMax == 0:
+            dd = defaultdict(list)
+            for d in (timedict, demodict):
+                for key, value in d.items():
+                    dd[key].extend(value)
+            od = OrderedDict(sorted(dd.items()))
+            # build models
+            dem_list = self.model_scrm(od, Ne, npops)
+
+        else:
+            migdict = self.gradIso(timedict, Ne, mMax, mIso)
+            dd = defaultdict(list)
+            # sort dict by times
+            for d in (timedict, demodict, migdict):
+                for key, value in d.items():
+                    dd[key].extend(value)
+            od = OrderedDict(sorted(dd.items()))
+            # build models
+            dem_list = self.modelMig_scrm(od, Ne, npops)
         return(dem_list)
 
-    def model2_scrm(self, params, demodict, parlist, Ne, mMax, mIso, t_ints=10):
-        """Simulate speciation followed by migration
-
-        Parameters
-        ------
-        params: list, list of parameters
-            times, ancestral effective sizes, time_isolation, migrationMax
-        demodict: dict, times and growth rate changes for each species
-            i.e., time: rate
-
-        Returns
-        ------
-        dem_list: list, demography list for msprime simulation
-
+    def gradIso(self, timedict, Ne, mMax, mIso, t_ints=10):
         """
-
-        dem_list = []
-        timedict = defaultdict(list)
-        for i, event in enumerate(parlist):
-            if "ej" in event:
-                timedict[params[i]].append([event])
+        """
         # calculate these in coal time, then transform into gens
         NemMax = mMax * 4*Ne
         migdict = defaultdict(list)
@@ -111,17 +74,16 @@ class Model(object):
                 mlist = [(NemMax/(tdc+tsc))*(t+tsc) for t in tlin]
             else:
                 tlin = np.linspace(tdc-tsc, tdc, t_ints)
-                #tlist = [np.round(t) for t in tlin]
+                # tlist = [np.round(t) for t in tlin]
                 mlist = [(NemMax/(tdc-(tdc-tsc)))*(t-(tdc-tsc)) for t in tlin]
             for t, m in zip(tlin, mlist):
                 migdict[np.round(t*4*Ne)].append(['mg' + timedict[td][0][0][2:], m/(4*Ne)])
-            # migdict[mIso] = ['mg' + timedict[td][0][2:], 0]
-        # merge dicts
-        dd = defaultdict(list)
-        for d in (timedict, demodict, migdict):
-            for key, value in d.items():
-                dd[key].extend(value)
-        od = OrderedDict(sorted(dd.items()))
+        return(migdict)
+
+    def modelMig_scrm(self, od, Ne, npops):
+        """
+        """
+        dem_list = []
         sourcelist = []
         for k, event in od.items():
             # event = [y for x in event for y in x]
@@ -140,15 +102,99 @@ class Model(object):
                             dem_list.append("-en {} {} {}".format(k/(4*Ne), v[0][2], int(v[1])/Ne))
                             dem_list.append("-eg {} {} {}".format(k/(4*Ne), v[0][2], 4*Ne*float(v[2])))
                 elif "mg" in v[0]:
-                    if v[0][2] in sourcelist or v[0][3] in sourcelist:
-                        pass
+                    if len(v[0]) > 4:
+                        # migration rates after hybridization
+                        if any(i in sourcelist for i in v[0]):
+                            pass
+                        else:
+                            dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][2], v[0][3], v[1]*4*Ne))
+                            dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][3], v[0][2], v[1]*4*Ne))
+                            dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][2], v[0][4], v[1]*4*Ne))
+                            dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][4], v[0][2], v[1]*4*Ne))
                     else:
-                        dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][2], v[0][3], v[1]*4*Ne))
-                        dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][3], v[0][2], v[1]*4*Ne))
+                        if any(i in sourcelist for i in v[0]):
+                            pass
+                        else:
+                            # symmetric since 1 rate
+                            dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][2], v[0][3], v[1]*4*Ne))
+                            dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][3], v[0][2], v[1]*4*Ne))
+                elif "em" in v[0]:
+                        if any(i in sourcelist for i in v[0]):
+                            pass
+                        else:
+                            if len(v) > 2:
+                                # asymm since 2 rates
+                                dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][2], v[0][3], v[1]*4*Ne))
+                                dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][3], v[0][2], v[2]*4*Ne))
+                            elif len(v) == 2:
+                                # symmetric since 1 rate
+                                dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][2], v[0][3], v[1]*4*Ne))
+                                dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][3], v[0][2], v[1]*4*Ne))
+                            else:
+                                # stop migration
+                                dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][2], v[0][3], 0))
+                                dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][3], v[0][2], 0))
+                elif "es" in v[0]:
+                    if any(i in sourcelist for i in v[0]):
+                        raise Exception("something wrong in es")
+                    else:
+                        dem_list.append("-es {} {} {}".format(k/(4*Ne), v[0][2], v[1]))
+                        dem_list.append("-ej {} {} {}".format(k/(4*Ne), v[0][2], v[0][3]))
+                        dem_list.append("-ej {} {} {}".format(k/(4*Ne), npops+1, v[0][4]))
+                        dem_list.append("-eg {} {} {}".format(k/(4*Ne), v[0][2], 0))
+                        dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][2], v[0][3], 0))
+                        dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][3], v[0][2], 0))
+                        dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][2], v[0][4], 0))
+                        dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][4], v[0][2], 0))
+                        sourcelist.append(v[0][2])
         return(dem_list)
 
-    def model3_scrm(self, params, demodict, parlist, Ne):
+    def model_scrm(self, od, Ne, npops):
         """
         """
-        # migration from demodict or params is listed as m, where as gradual speciation is listed as mg
-        return(None)
+        dem_list = []
+        sourcelist = []
+        for k, event in od.items():
+            for v in event:
+                if "ej" in v[0]:
+                    dem_list.append("-ej {} {} {}".format(k/(4*Ne), v[0][2], v[0][3]))
+                    dem_list.append("-eg {} {} {}".format(k/(4*Ne), v[0][2], 0))
+                    dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][2], v[0][3], 0))
+                    dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][3], v[0][2], 0))
+                    sourcelist.append(v[0][2])
+                elif "Ne" in v[0]:
+                    if v[0][2] not in sourcelist:
+                        if v[1] == "None":
+                            dem_list.append("-eg {} {} {}".format(k/(4*Ne), v[0][2], 4*Ne*float(v[2])))
+                        else:
+                            dem_list.append("-en {} {} {}".format(k/(4*Ne), v[0][2], int(v[1])/Ne))
+                            dem_list.append("-eg {} {} {}".format(k/(4*Ne), v[0][2], 4*Ne*float(v[2])))
+                elif "em" in v[0]:
+                        if any(i in sourcelist for i in v[0]):
+                            pass
+                        else:
+                            if len(v) > 2:
+                                # asymm since 2 rates
+                                dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][2], v[0][3], v[1]*4*Ne))
+                                dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][3], v[0][2], v[2]*4*Ne))
+                            elif len(v) == 2:
+                                # symmetric since 1 rate
+                                dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][2], v[0][3], v[1]*4*Ne))
+                                dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][3], v[0][2], v[1]*4*Ne))
+                            else:
+                                # stop migration
+                                dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][2], v[0][3], 0))
+                                dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][3], v[0][2], 0))
+                elif "es" in v[0]:
+                    if any(i in sourcelist for i in v[0]):
+                        raise Exception("something wrong in es")
+                    else:
+                        dem_list.append("-es {} {} {}".format(k/(4*Ne), v[0][2], v[1]))
+                        dem_list.append("-ej {} {} {}".format(k/(4*Ne), v[0][2], v[0][3]))
+                        dem_list.append("-ej {} {} {}".format(k/(4*Ne), npops+1, v[0][4]))
+                        dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][2], v[0][3], 0))
+                        dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][3], v[0][2], 0))
+                        dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][2], v[0][4], 0))
+                        dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][4], v[0][2], 0))
+                        sourcelist.append(v[0][2])
+        return(dem_list)

@@ -31,8 +31,11 @@ def read_msformat(msout):
                 popconfig = []
                 scrmline = line
                 for p in popsize:
-                    popconfig.append(list(range(ind, p+ind)))
-                    ind += p
+                    if p == 0:
+                        pass
+                    else:
+                        popconfig.append(list(range(ind, p+ind)))
+                        ind += p
                 line = next(ms)
                 seed = line.split()[0].decode('utf-8')
             elif line.startswith("positions"):

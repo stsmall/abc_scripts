@@ -1,0 +1,36 @@
+#time pop event params
+#to be inferred Fun 1, Like 2, Van 3, Lon 4, Par 5
+tbi1 em 12 rUint 0 18000 rUflt 0 0.001 rUflt 0 0.001
+tbi3 aem 12 rUint 1 100000
+tbi4 es 453 rUint 20000 255000 rBflt 0.5 .1
+tbi5 es 351 rUint 1000000 2000000 rBflt 0.5 0.1
+tbi6 ej 15 rUint 3000000 6000000
+tbi7 aej 25 rUint 500000 1000000
+#Fun demography
+13169 Ne 1 207997 0
+20145 Ne 1 134260 0
+29023 Ne 1 111176 0
+54708 Ne 1 138712 -5.5E-6
+449839 Ne 1 None 0
+2489093 Ne 1 None -2.19E-8 
+21918429 Ne 1 None 0
+#Like demography
+13886 Ne 2 45655 -1.6E-7
+23111250 Ne 2 None 0
+#Van demography
+37129 Ne 3 None 0
+1410321 Ne 3 None -3.79E-8
+20181500 Ne 3 None 0
+#Lon demography
+46378 Ne 4 None 1.1E-5
+110776 Ne 4 None 0
+1761650 Ne 4 None -3.31E-8
+25208929 Ne 4 None 0 
+#Par demography
+67440 Ne 5 None 0
+868904 Ne 5 None -5.47E-8
+20244929 Ne 5 None 0
+#Anc demography
+34521 Ne 6 86000 0
+99847 Ne 6 None -1.04E-7
+28140393 Ne 6 None 0

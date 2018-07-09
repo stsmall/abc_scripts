@@ -39,8 +39,7 @@ parser.add_argument("--scrm", type=str, help="path to scrm exe")
 args = parser.parse_args()
 
 
-def writeABC(stats, seed, scrmline, params, ix, block, filetpath, mfile,
-             filet=True):
+def writeABC(stats, seed, scrmline, params, ix, block, filetpath, filet=True):
     """Prints results of simulations and stats to text file
 
     Parameters
@@ -60,36 +59,39 @@ def writeABC(stats, seed, scrmline, params, ix, block, filetpath, mfile,
     jsfstotal = np.sum(jsfslist, axis=1)
     props = [j/jsfstotal[i] for i, j in enumerate(jsfslist)]
     jsfs = " ".join(map(str, np.concatenate(props).ravel()))
-    # jsfs = " ".join(map(str, props))
     tots = " ".join(map(str, jsfstotal))
     asfslist = stats.asfsStats(fold=False)
     asfs = " ".join(map(str, [i for t in asfslist for i in t]))
     if filet:
         filet_list = stats.filetStats(block, filetpath)
         filetstats = " ".join(map(str, np.concatenate(filet_list).ravel()))
-    abcfile = os.path.join(mfile, "abc.{}.{}.out".format(ix, seed))
-    f = open(abcfile, 'w')
     x = scrmline.split()
     theta = x[4]
     rho = x[6]
+    par = []
+    for i in params:
+        if type(i) is list:
+            par.extend(i)
+        else:
+            par.append(i)
     if ix == 1:
         # 'ej21 ej45 NA ej35 NA ej15 NA NA NA NA NA'
-        params.insert(2, 'NA')
-        params.insert(4, 'NA')
+        par.insert(2, 'NA')
+        par.insert(4, 'NA')
         nalist = 'NA ' * 5
     elif ix == 2:
         # 'ej21 ej45 NA ej35 NA ej15 NA NA NA NA NA'
-        params.insert(2, 'NA')
-        params.insert(4, 'NA')
+        par.insert(2, 'NA')
+        par.insert(4, 'NA')
         nalist = 'NA ' * 5
     elif ix == 3:
         # 'ej21 ej45 NA ej35 NA ej15 NA NA NA NA NA'
-        params.insert(2, 'NA')
-        params.insert(4, 'NA')
+        par.insert(2, 'NA')
+        par.insert(4, 'NA')
         nalist = 'NA ' * 5
     elif ix == 4:
         # 'ej21 ej45 NA es3 esa ej15 NA NA NA NA NA'
-        params.insert(2, 'NA')
+        par.insert(2, 'NA')
         nalist = 'NA ' * 5
     elif ix == 5:
         # 'ej21 es4 esa4 es3 esa3 ej15 NA NA NA NA NA'
@@ -97,14 +99,13 @@ def writeABC(stats, seed, scrmline, params, ix, block, filetpath, mfile,
     elif ix == 6:
         # 'NA es4 esa4 es3 es3a ej15 ej25 em m12 m21 em'
         nalist = ''
-        params.insert(0, 'NA')
+        par.insert(0, 'NA')
     else:
         pass
-    f.write("{} {} {} {} {} {} {} {} {} {}".format(seed, theta, rho, ix,
-            " ".join(map(str, params)), nalist.rstrip(), asfs, jsfs, tots,
-            filetstats))
-    f.close()
-    return(None)
+    fabc = "{} {} {} {} {} {} {} {} {} {}".format(seed, theta, rho, ix, " ".join(map(str, par)),
+                                                  nalist.rstrip(), asfs, jsfs,
+                                                  tots, filetstats)
+    return(fabc)
 
 
 def simulate(model, demodict, ix, parfx, parlist, thetaarray, rhoarray, scrm):
@@ -210,33 +211,41 @@ if __name__ == "__main__":
              "mMax": mMax,
              "mIso": mIso
              }
-    for i in range(args.iterations):
-        # =====================================================================
-        # Simulations
-        # =====================================================================
-        mscmd, params = simulate(model,
-                                 demodict,
-                                 ix,
-                                 parfx,
-                                 parlist,
-                                 thetaarray,
-                                 rhoarray,
-                                 args.scrm)
-        # =====================================================================
-        # Parse
-        # =====================================================================
-        print(mscmd)
-        msout = subprocess.Popen(mscmd, shell=True, stdout=subprocess.PIPE)
-        print("\nsim complete ... reading file")
-        gtlist, pos, pops, block, scrmline, seed = read_msformat(msout)
-        # gtlist, pos, pops, block, scrmline, seed = read_msformat_file(base)
-        # =====================================================================
-        # Stats
-        # =====================================================================
-        print("calculating stats")
-        stats = SimStats(gtlist, pops, pos)
-        # =====================================================================
-        # Write to File
-        # =====================================================================
-        print("writing stats")
-        writeABC(stats, seed, scrmline, params, ix, block, args.filet, mfile)
+    its = args.iterations
+    abcfile = os.path.join(mfile, "abc.{}.{}.out".format(ix, np.random.rand()))
+    with open(abcfile, 'w') as f:
+        for i in range(its):
+            # =================================================================
+            # Simulations
+            # =================================================================
+            mscmd, params = simulate(model,
+                                     demodict,
+                                     ix,
+                                     parfx,
+                                     parlist,
+                                     thetaarray,
+                                     rhoarray,
+                                     args.scrm)
+            # =================================================================
+            # Parse
+            # =================================================================
+            msout = subprocess.Popen(mscmd, shell=True, stdout=subprocess.PIPE)
+            print(mscmd)
+            print("\nsim complete ... reading file")
+            gtlist, pos, pops, block, scrmline, seed = read_msformat(msout)
+            # gtlist,pos,pops,block,scrmline,seed = read_msformat_file(base)
+            # =================================================================
+            # Stats
+            # =================================================================
+            stats = SimStats(gtlist, pops, pos)
+            # =================================================================
+            # Write to File
+            # =================================================================
+            fabc = writeABC(stats,
+                            seed,
+                            scrmline,
+                            params,
+                            ix,
+                            block,
+                            args.filet)
+            f.write("{}\n".format(fabc))

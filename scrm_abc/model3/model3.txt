@@ -30,6 +30,5 @@ tbi5 aej 65 rUint 500000 1000000
 868904 Ne 5 None -5.47E-8
 20244929 Ne 5 None 0
 #Anc demography
-34521 Ne 6 86000 0
-99847 Ne 6 None -1.04E-7
-28140393 Ne 6 None 0
+13886 Ne 6 45655 -1.6E-7
+23111250 Ne 6 None 0

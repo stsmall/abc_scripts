@@ -10,7 +10,6 @@ from __future__ import division
 from subprocess import run, PIPE
 import numpy as np
 import allel
-import sys
 from itertools import combinations
 #import multiprocessing
 
@@ -29,15 +28,20 @@ class SimStats:
         print("jsfs")
         gtT = [g.transpose() for g in self.gtlist]
         gt = allel.HaplotypeArray(np.vstack(gtT))
-        n = 100000  # number of SNPs to choose randomly
-        try:
-            vidx = np.random.choice(gt.shape[0], n, replace=False)
-        except ValueError:
-            vidx = np.random.choice(gt.shape[0], gt.shape[0], replace=False)
-        vidx.sort()
-        gtr = gt.take(vidx, axis=0)
         jsfslist = []
         for i, j in combinations(self.pops, 2):
+            gtpops = gt.take(i+j, axis=1)
+            acpops = gtpops.count_alleles()
+            seg = acpops.is_segregating()
+            gtseg = gt.compress(seg)
+            # random snps
+            n = 100000  # number of SNPs to choose randomly
+            try:
+                vidx = np.random.choice(gtseg.shape[0], n, replace=False)
+            except ValueError:
+                vidx = np.random.choice(gtseg.shape[0], gtseg.shape[0], replace=False)
+            vidx.sort()
+            gtr = gtseg.take(vidx, axis=0)
             gtpop1 = gtr.take(i, axis=1)
             gtpop2 = gtr.take(j, axis=1)
             ac1 = gtpop1.count_alleles()
@@ -87,22 +91,27 @@ class SimStats:
         print("asfs")
         gtT = [g.transpose() for g in self.gtlist]
         gt = allel.HaplotypeArray(np.vstack(gtT))
-        n = 100000  # number of SNPs to choose randomly
-        try:
-            vidx = np.random.choice(gt.shape[0], n, replace=False)
-        except ValueError:
-            vidx = np.random.choice(gt.shape[0], gt.shape[0], replace=False)
-        vidx.sort()
-        gtr = gt.take(vidx, axis=0)
         aSFS1 = []
         aSFS2 = []
         for p in self.pops:
-            gtp = gtr.take(p, axis=1)
+            gtpop = gt.take(p, axis=1)
+            acpop = gtpop.count_alleles()
+            seg = acpop.is_segregating()
+            gtseg = gtpop.compress(seg)
+            # random snps
+            n = 100000  # number of SNPs to choose randomly
+            try:
+                vidx = np.random.choice(gtseg.shape[0], n, replace=False)
+            except ValueError:
+                vidx = np.random.choice(gtseg.shape[0], gtseg.shape[0], replace=False)
+            vidx.sort()
+            gtp = gtseg.take(vidx, axis=0)
             sfsp = (allel.sfs(gtp.count_alleles()[:, 1]))
             tots = np.sum(sfsp)
             aSFS1.append(sfsp[1]/tots)
             aSFS2.append(sfsp[2]/tots)
         return(aSFS1, aSFS2)
+
 
     def filetStats(self, block, filetpath):
         """use filet for stats array

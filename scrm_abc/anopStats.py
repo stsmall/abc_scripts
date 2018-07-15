@@ -22,7 +22,7 @@ class SimStats:
         self.pops = pops
         self.pos = pos
 
-    def jsfsStats(self, fold=False):
+    def jsfsStats(self, rand=True):
         """Joint site frequency spectrum with scikit-allel
         """
         print("jsfs")
@@ -35,10 +35,13 @@ class SimStats:
             seg = acpops.is_segregating()
             gtseg = gt.compress(seg)
             # random snps
-            n = 100000  # number of SNPs to choose randomly
-            try:
-                vidx = np.random.choice(gtseg.shape[0], n, replace=False)
-            except ValueError:
+            if rand:
+                n = 100000  # number of SNPs to choose randomly
+                try:
+                    vidx = np.random.choice(gtseg.shape[0], n, replace=False)
+                except ValueError:
+                    vidx = np.random.choice(gtseg.shape[0], gtseg.shape[0], replace=False)
+            else:
                 vidx = np.random.choice(gtseg.shape[0], gtseg.shape[0], replace=False)
             vidx.sort()
             gtr = gtseg.take(vidx, axis=0)
@@ -46,18 +49,11 @@ class SimStats:
             gtpop2 = gtr.take(j, axis=1)
             ac1 = gtpop1.count_alleles()
             ac2 = gtpop2.count_alleles()
-            if fold:
-                # pad for allel as well
-                popsizeA, popsizeB = len(i)/2, len(j)/2
-                fs = np.zeros((popsizeA + 1, popsizeB + 1), dtype=int)
-                jsfs = allel.joint_sfs_folded(ac1, ac2)
-                fs[:jsfs.shape[0], :jsfs.shape[1]] = jsfs
-            else:
-                # pad for allel as well
-                popsizeA, popsizeB = len(i), len(j)
-                fs = np.zeros((popsizeA + 1, popsizeB + 1), dtype=int)
-                jsfs = allel.joint_sfs(ac1[:, 1], ac2[:, 1])
-                fs[:jsfs.shape[0], :jsfs.shape[1]] = jsfs
+            # unfolded jsfs
+            popsizeA, popsizeB = len(i), len(j)
+            fs = np.zeros((popsizeA + 1, popsizeB + 1), dtype=int)
+            jsfs = allel.joint_sfs(ac1[:, 1], ac2[:, 1])
+            fs[:jsfs.shape[0], :jsfs.shape[1]] = jsfs
             jsfsarray = np.zeros(23)
             jsfsarray[0] = np.sum(fs[0, 1:3])
             jsfsarray[1] = np.sum(fs[1:3, 0])
@@ -85,7 +81,7 @@ class SimStats:
             jsfslist.append(jsfsarray)
         return(jsfslist)
 
-    def asfsStats(self, fold=False):
+    def asfsStats(self, rand=True):
         """Aggregate SFS, singletons and doubletons
         """
         print("asfs")
@@ -99,10 +95,13 @@ class SimStats:
             seg = acpop.is_segregating()
             gtseg = gtpop.compress(seg)
             # random snps
-            n = 100000  # number of SNPs to choose randomly
-            try:
-                vidx = np.random.choice(gtseg.shape[0], n, replace=False)
-            except ValueError:
+            if rand:
+                n = 100000  # number of SNPs to choose randomly
+                try:
+                    vidx = np.random.choice(gtseg.shape[0], n, replace=False)
+                except ValueError:
+                    vidx = np.random.choice(gtseg.shape[0], gtseg.shape[0], replace=False)
+            else:
                 vidx = np.random.choice(gtseg.shape[0], gtseg.shape[0], replace=False)
             vidx.sort()
             gtp = gtseg.take(vidx, axis=0)
@@ -111,7 +110,6 @@ class SimStats:
             aSFS1.append(sfsp[1]/tots)
             aSFS2.append(sfsp[2]/tots)
         return(aSFS1, aSFS2)
-
 
     def filetStats(self, block, filetpath):
         """use filet for stats array
@@ -146,7 +144,9 @@ class SimStats:
             proc = run(cmd, stdout=PIPE, input=msinput, encoding='ascii')
             lstats = proc.stdout.rstrip().split('\n')[1:]
             filetlist = [list(map(float, l.split())) for l in lstats]
-            filetmean = np.mean(np.vstack(filetlist), axis=0)
+            filetnan = np.vstack(filetlist)
+            filetnan[np.isinf(filetnan)] = 'nan'
+            filetmean = np.nanmean(filetnan, axis=0)
             filetnorm = filetmean / norm
             filet.append(filetnorm)
         return(filet)

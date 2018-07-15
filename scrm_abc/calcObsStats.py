@@ -21,9 +21,9 @@ sns.set_style('white')
 sns.set_style('ticks')
 
 parser = argparse.ArgumentParser()
-parser.add_arguement('-v', "--vcfFile", help="path to vcf")
+parser.add_argument('-v', "--vcfFile", help="path to vcf")
 parser.add_argument('--h5', action="store_true", help="h5 exists")
-parser.add_arguement('-m', "--meta", required=True, help="path to meta data")
+parser.add_argument('-m', "--meta", required=True, help="path to meta data")
 args = parser.parse_args()
 
 
@@ -243,7 +243,36 @@ if __name__ == "__main__":
     jsfsdict = {}
     for c in chrlist:
         var.geno(c, meta)
-        # sfsdict[c] = asfsStatsSeg(var.gt, pops, c, rand=False, plot=True)
-        sfsdict[c] = asfsStats(var.gt, pops, c)
-        # jsfsdict[c] = jsfsStatsSeg(var.gt, pops, c, fold=False, rand=False, plot=True)
-        jsfsdict[c] = jsfsStats(var.gt, pops, c)
+        sfsdict[c] = asfsStatsSeg(var.gt, pops, c, rand=False, plot=False)
+        #sfsdict[c] = asfsStats(var.gt, pops, c)
+        jsfsdict[c] = jsfsStatsSeg(var.gt, pops, c, fold=False, rand=False, plot=False)
+        #jsfsdict[c] = jsfsStats(var.gt, pops, c)
+
+    # asfs
+    s1 = []
+    s2 = []
+    for chrm in sfsdict.keys():
+        s1.append(sfsdict[chrm][0])
+        s2.append(sfsdict[chrm][1])
+    s1array = np.mean(np.vstack(s1), axis=0)
+    s2array = np.mean(np.vstack(s2), axis=0)
+
+    # jsfs
+    props = []
+    for chrm in jsfsdict.keys():
+        jsfslist = jsfsdict[chrm]
+        jsfstotal = np.sum(jsfslist, axis=1)
+        props.append([j/jsfstotal[i] for i, j in enumerate(jsfslist)])
+    jsfs = []
+    for pairs in range(len(props[0])):
+        p = []
+        for chrm in props:
+            p.append(chrm[pairs])
+        jsfs.append(np.mean(np.vstack(p), axis=0))
+    # write out
+    s1 = " ".join(map(str,list(s1array)))
+    s2 = " ".join(map(str,list(s2array)))
+    j23 = " ".join(map(str, np.concatenate(jsfs).ravel()))
+    f = open("Observed_summStats.out", 'w')
+    f.write("{} {} {}\n".format(s1, s2, j23))
+    f.close()

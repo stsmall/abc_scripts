@@ -88,7 +88,7 @@ def writeABC(stats, seed, scrmline, params, ix, block, filetpath, filet=True):
         # 'ej21 ej45 NA ej35 NA ej15 NA NA NA NA NA'
         par.insert(2, 'NA')
         par.insert(4, 'NA')
-        nalist = 'NA ' * 5
+        nalist = 'NA ' * 4
     elif ix == 4:
         # 'ej21 ej45 NA es3 esa ej15 NA NA NA NA NA'
         par.insert(2, 'NA')

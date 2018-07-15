@@ -59,7 +59,6 @@ def writeABC(stats, seed, scrmline, params, ix, block, filetpath, filet=True):
     jsfstotal = np.sum(jsfslist, axis=1)
     props = [j/jsfstotal[i] for i, j in enumerate(jsfslist)]
     jsfs = " ".join(map(str, np.concatenate(props).ravel()))
-    tots = " ".join(map(str, jsfstotal))
     asfslist = stats.asfsStats(fold=False)
     asfs = " ".join(map(str, [i for t in asfslist for i in t]))
     if filet:
@@ -104,7 +103,7 @@ def writeABC(stats, seed, scrmline, params, ix, block, filetpath, filet=True):
         pass
     fabc = "{} {} {} {} {} {} {} {} {} {}".format(seed, theta, rho, ix, " ".join(map(str, par)),
                                                   nalist.rstrip(), asfs, jsfs,
-                                                  tots, filetstats)
+                                                  filetstats)
     return(fabc)
 
 

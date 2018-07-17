@@ -39,7 +39,7 @@ parser.add_argument("--scrm", type=str, help="path to scrm exe")
 args = parser.parse_args()
 
 
-def writeABC(stats, seed, scrmline, params, ix, block, filetpath, filet=True):
+def writeABC(stats, seed, scrmline, params, parlist, ix, block, filetpath, filet=True):
     """Prints results of simulations and stats to text file
 
     Parameters
@@ -68,6 +68,14 @@ def writeABC(stats, seed, scrmline, params, ix, block, filetpath, filet=True):
     theta = x[4]
     rho = x[6]
     par = []
+    if ix < 7:
+        mMax_ix = [i for i, p in enumerate(parlist) if "mMax" in p]
+        mIso_ix = [i for i, p in enumerate(parlist) if "mIso" in p]
+        if mMax_ix:
+            rmv = min(mMax_ix + mIso_ix)
+            params = params[0:rmv]
+    else:
+        pass  # model 7 and 8 are for inferring mig/iso
     for i in params:
         if type(i) is list:
             par.extend(i)
@@ -97,13 +105,32 @@ def writeABC(stats, seed, scrmline, params, ix, block, filetpath, filet=True):
         nalist = 'NA ' * 5
     elif ix == 6:
         # 'NA es4 esa4 es3 es3a ej15 ej25 em m12 m21 em'
-        nalist = ''
+        nalist = None
+        par.insert(0, 'NA')
+    elif ix == 7:
+        # version of model 6 allowing for a comparison with model 8
+        # 'NA es4 esa4 es3 es3a ej15 ej25 em m12 m21 em'
+        nalist = 'NA ' * 10
+        par.insert(0, 'NA')
+    elif ix == 8:
+        # version of model 6 to infer mMax and mIso
+        # 'NA es4 esa4 es3 es3a ej15 ej25 em m12 m21 em mMax35 mIso35 mMax45 mIso45 mMax25 mIso45'
+        # cut -d" " -f 4-26
+        nalist = None
         par.insert(0, 'NA')
     else:
         pass
-    fabc = "{} {} {} {} {} {} {} {} {} ".format(seed, theta, rho, ix, " ".join(map(str, par)),
-                                                  nalist.rstrip(), asfs, jsfs,
-                                                  filetstats)
+
+    if nalist is None:
+        fabc = "{} {} {} {} {} {} {} {}".format(seed, theta, rho, ix,
+                                            " ".join(map(str, par)),
+                                            asfs, jsfs,
+                                            filetstats)
+    else:
+        fabc = "{} {} {} {} {} {} {} {} {}".format(seed, theta, rho, ix,
+                                                    " ".join(map(str, par)),
+                                                    nalist.rstrip(), asfs, jsfs,
+                                                    filetstats)
     return(fabc)
 
 
@@ -137,9 +164,7 @@ def simulate(model, demodict, ix, parfx, parlist, thetaarray, rhoarray, scrm):
                           params,
                           demodict,
                           parlist,
-                          Ne,
-                          model["mMax"],
-                          model["mIso"])
+                          Ne)
     # all to dict
     ms_params = {
                 'scrm': scrm,
@@ -187,9 +212,6 @@ if __name__ == "__main__":
     migration_matrix = np.genfromtxt(os.path.join(mfile, migFile), delimiter=",")
     assert len(sampleSize) == migration_matrix.shape[0]
     #
-    mMax = config.getfloat(sh, "mMax")
-    mIso = config.getint(sh, "mIso")
-    #
     sh = "parameters"
     thetaFile = config.get(sh, "theta_distribution")
     thetaarray = np.loadtxt(os.path.join(mfile, thetaFile))
@@ -206,9 +228,7 @@ if __name__ == "__main__":
              "initialSize": initialSize,
              "growthRate": growthRate,
              "migMat": migration_matrix,
-             "loci": loci,
-             "mMax": mMax,
-             "mIso": mIso
+             "loci": loci
              }
     its = args.iterations
     abcfile = os.path.join(mfile, "abc.{}.{}.out".format(ix, np.random.rand()))
@@ -244,6 +264,7 @@ if __name__ == "__main__":
                             seed,
                             scrmline,
                             params,
+                            parlist,
                             ix,
                             block,
                             args.filet)

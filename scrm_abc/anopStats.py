@@ -154,6 +154,7 @@ class SimStats:
     def filetStatsMP(self, args):
         """use filet for stats array
         """
+        print('filet')
         pop1, pop2, block, filetpath = args
         norm = np.array([block, block**2, block, block, block, 1, block, 1, 1,
                          block, block**2, block, block, block, 1, block, 1, 1,

@@ -66,12 +66,12 @@ def writeABC(stats, seed, scrmline, params, parlist, ix, block, filetpath, filet
     if filet:
         if MP:
             print("filet")
-            filetlist = []
             pool = multiprocessing.Pool(nprocs)
             argslist = []
+            import ipdb;ipdb.set_trace()
             for pop1, pop2 in combinations(stats.pops, 2):
                 argslist.append([pop1, pop2, block, filetpath])
-            filetlist.append(pool.map(stats.filetStatsMP, argslist))
+            filetlist = pool.map(stats.filetStatsMP, argslist)
             pool.close()
             filetstats = " ".join(map(str, np.concatenate(filetlist).ravel()))
         else:

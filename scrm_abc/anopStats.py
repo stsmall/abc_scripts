@@ -150,3 +150,37 @@ class SimStats:
             filetnorm = filetmean / norm
             filet.append(filetnorm)
         return(filet)
+
+    def filetStatsMP(self, args):
+        """use filet for stats array
+        """
+        pop1, pop2, block, filetpath = args
+        norm = np.array([block, block**2, block, block, block, 1, block, 1, 1,
+                         block, block**2, block, block, block, 1, block, 1, 1,
+                         1, 1, block, block, block, 1, 1, 1, 1, 1, 1, 1, 1])
+        loci = len(self.gtlist)
+        n1 = len(pop1)
+        n2 = len(pop2)
+        fakems = []
+        fakems.append("ms {} {} -t tbs -r tbs {} -I 2 {} {}\n1234\n".format(n1+n2, loci, block, n1, n2))
+        for i, g in enumerate(self.gtlist):
+            gt = g[pop1+pop2]
+            seg_pos = np.sum(gt, axis=0)
+            seg_mask = (seg_pos > 0) & (seg_pos < (n1+n2))
+            seg = np.count_nonzero(seg_mask)
+            posit = self.pos[i][seg_mask]
+            gt_seg = gt[:, seg_mask]
+            fakems.append("\n//\nsegsites: {}\npositions: {}\n".format(seg,
+                          " ".join(map(str, posit))))
+            for a in gt_seg:
+                fakems.append("{}\n".format("".join(map(str, a))))
+        msinput = "".join(fakems)
+        cmd = ["{}twoPopnStats_forML".format(filetpath), str(n1), str(n2)]
+        proc = run(cmd, stdout=PIPE, input=msinput, encoding='ascii')
+        lstats = proc.stdout.rstrip().split('\n')[1:]
+        filetlist = [list(map(float, l.split())) for l in lstats]
+        filetnan = np.vstack(filetlist)
+        filetnan[np.isinf(filetnan)] = 'nan'
+        filetmean = np.nanmean(filetnan, axis=0)
+        filetnorm = filetmean / norm
+        return(filetnorm)

@@ -23,6 +23,8 @@ from anopStats import SimStats
 from parse_ms import read_msformat
 import argparse
 import subprocess
+import multiprocessing
+from itertools import combinations
 # check versions
 assert sys.version_info[0] >= 3
 assert allel.__version__ == "1.1.10"
@@ -39,7 +41,7 @@ parser.add_argument("--scrm", type=str, help="path to scrm exe")
 args = parser.parse_args()
 
 
-def writeABC(stats, seed, scrmline, params, parlist, ix, block, filetpath, filet=True):
+def writeABC(stats, seed, scrmline, params, parlist, ix, block, filetpath, filet=True, MP=True, nprocs=10):
     """Prints results of simulations and stats to text file
 
     Parameters
@@ -62,8 +64,19 @@ def writeABC(stats, seed, scrmline, params, parlist, ix, block, filetpath, filet
     asfslist = stats.asfsStats(rand=True)
     asfs = " ".join(map(str, [i for t in asfslist for i in t]))
     if filet:
-        filet_list = stats.filetStats(block, filetpath)
-        filetstats = " ".join(map(str, np.concatenate(filet_list).ravel()))
+        if MP:
+            print("filet")
+            filetlist = []
+            pool = multiprocessing.Pool(nprocs)
+            argslist = []
+            for pop1, pop2 in combinations(stats.pops, 2):
+                argslist.append([pop1, pop2, block, filetpath])
+            filetlist.append(pool.map(stats.filetStatsMP, argslist))
+            pool.close()
+            filetstats = " ".join(map(str, np.concatenate(filetlist).ravel()))
+        else:
+            filet_list = stats.filetStats(block, filetpath)
+            filetstats = " ".join(map(str, np.concatenate(filet_list).ravel()))
     x = scrmline.split()
     theta = x[4]
     rho = x[6]

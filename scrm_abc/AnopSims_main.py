@@ -41,7 +41,7 @@ parser.add_argument("--scrm", type=str, help="path to scrm exe")
 args = parser.parse_args()
 
 
-def writeABC(stats, seed, scrmline, params, parlist, ix, block, filetpath, filet=True, MP=True, nprocs=10):
+def writeABC(stats, seed, scrmline, params, parlist, ix, block, filetpath, filet=True, MP=False, nprocs=10):
     """Prints results of simulations and stats to text file
 
     Parameters
@@ -57,6 +57,8 @@ def writeABC(stats, seed, scrmline, params, parlist, ix, block, filetpath, filet
     stats_file: openFile
 
     """
+    if nprocs > multiprocessing.cpu_count():
+        nprocs = multiprocessing.cpu_count()
     jsfslist = stats.jsfsStats(rand=True)
     jsfstotal = np.sum(jsfslist, axis=1)
     props = [j/jsfstotal[i] for i, j in enumerate(jsfslist)]

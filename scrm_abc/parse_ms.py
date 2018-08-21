@@ -18,27 +18,28 @@ def read_msformat(msout):
     pos_list = []
     gt_list = []
     ms = iter(msout.stdout.readline, '')
+    line = next(ms)
+    line = line.decode('utf-8')
+    x = line.split()
+    nind = int(x[1])
+    block = int(x[7])
+    pops = int(x[9])
+    popsize = map(int, x[10:10+pops])
+    ind = 0
+    popconfig = []
+    scrmline = line
+    for p in popsize:
+        if p == 0:
+            pass
+        else:
+            popconfig.append(list(range(ind, p+ind)))
+            ind += p
+    line = next(ms)
+    seed = line.split()[0].decode('utf-8')
     for line in ms:
         if line != b'':
             line = line.decode('utf-8')
-            if line.startswith("scrm"):
-                x = line.split()
-                nind = int(x[1])
-                block = int(x[7])
-                pops = int(x[9])
-                popsize = map(int, x[10:10+pops])
-                ind = 0
-                popconfig = []
-                scrmline = line
-                for p in popsize:
-                    if p == 0:
-                        pass
-                    else:
-                        popconfig.append(list(range(ind, p+ind)))
-                        ind += p
-                line = next(ms)
-                seed = line.split()[0].decode('utf-8')
-            elif line.startswith("positions"):
+            if line.startswith("positions"):
                 pos = np.array(line.strip().split()[1:], dtype=np.float64)
                 pos_list.append(pos)
                 # format as integer for scikit-allel
@@ -87,21 +88,21 @@ def read_msformat_file(baseName):
         pos_list = []
         gt_list = []
         with open(f, 'r') as ms:
+            line = next(ms)
+            x = line.split()
+            nind = int(x[1])
+            block = int(x[7])
+            pops = int(x[9])
+            popsize = map(int, x[10:10+pops])
+            ind = 0
+            popconfig = []
+            scrmline = line
+            seed = int(next(ms.split()[0]))
+            for p in popsize:
+                popconfig.append(list(range(ind, p+ind)))
+                ind = p
             for line in ms:
-                if line.startswith("scrm"):
-                    x = line.split()
-                    nind = int(x[1])
-                    block = int(x[7])
-                    pops = int(x[9])
-                    popsize = map(int, x[10:10+pops])
-                    ind = 0
-                    popconfig = []
-                    scrmline = line
-                    seed = int(next(ms.split()[0]))
-                    for p in popsize:
-                        popconfig.append(list(range(ind, p+ind)))
-                        ind = p
-                elif line.startswith("positions"):
+                if line.startswith("positions"):
                     # collisions can result here when theta is high
                     pos = np.round(np.array(line.strip().split()[1:], dtype=np.float64))
                     prev = 0

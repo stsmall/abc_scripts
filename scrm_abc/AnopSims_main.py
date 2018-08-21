@@ -196,8 +196,7 @@ def simulate(model, demodict, ix, parfx, parlist, thetaarray, rhoarray, ms):
                  }
     # scrm command line
     scrm_base = ("{ms} {nhaps} {loci} -t {theta} -r {rho} {basepairs} "
-                 "{subpops} {ne_subpop} {growth_subpop} -ma {migmat} {demo} "
-                 "-p 12")
+                 "{subpops} {ne_subpop} {growth_subpop} -ma {migmat} {demo}")
     mscmd = scrm_base.format(**ms_params)
     return(mscmd, params)
 

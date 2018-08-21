@@ -1,10 +1,10 @@
 #time pop event params
 #to be inferred Fun 1, Like 2, Van 3, Lon 4, Par 5
-tbi4 es 453 rUint 200000 1000000 rBflt 0.1 0.9
-tbi5 es 351 rUint 500000 1200000 rBflt 0.1 0.9
-tbi6 ej 15 rUint 2000000 4000000
-tbi7 aej 25 rUint 300000 800000
-tbi1 em 12 rUint 10000 100000 rUflt 0 0.001 rUflt 0 0.001
+tbi4 es 453 rUint 430000 900000 rUflt 0.1 0.9
+tbi5 es 351 rUint 800000 1200000 rUflt 0.1 0.9
+tbi6 ej 15 rUint 1500000 3000000
+tbi7 aej 25 rUint 200000 600000
+tbi1 em 12 rUint 20000 80000 rUflt 0 0.0004 rUflt 0 0.0002
 tbi3 aem 12 rUint 0 20000
 #Fun demography
 13169 Ne 1 207997 0

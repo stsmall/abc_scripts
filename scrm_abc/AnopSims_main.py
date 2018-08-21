@@ -37,11 +37,12 @@ parser.add_argument('-m', "--model_ix", type=int, required=True,
 parser.add_argument('-i', "--iterations", type=int, default=1,
                     help="number of iterations")
 parser.add_argument("--filet", type=str, help="path to filet exe")
-parser.add_argument("--scrm", type=str, help="path to scrm exe")
+parser.add_argument("--ms", type=str, help="path to ms")
 args = parser.parse_args()
 
 
-def writeABC(stats, seed, scrmline, params, parlist, ix, block, filetpath, filet=True, MP=False, nprocs=10):
+def writeABC(stats, seed, scrmline, params, parlist, ix, block, filetpath,
+             filet=True, MP=False, nprocs=10):
     """Prints results of simulations and stats to text file
 
     Parameters
@@ -137,22 +138,22 @@ def writeABC(stats, seed, scrmline, params, parlist, ix, block, filetpath, filet
 
     if nalist is None:
         fabc = "{} {} {} {} {} {} {} {}".format(seed, theta, rho, ix,
-                                            " ".join(map(str, par)),
-                                            asfs, jsfs,
-                                            filetstats)
+                                                " ".join(map(str, par)),
+                                                asfs, jsfs,
+                                                filetstats)
     else:
         fabc = "{} {} {} {} {} {} {} {} {}".format(seed, theta, rho, ix,
-                                                    " ".join(map(str, par)),
-                                                    nalist.rstrip(), asfs, jsfs,
-                                                    filetstats)
+                                                   " ".join(map(str, par)),
+                                                   nalist.rstrip(), asfs, jsfs,
+                                                   filetstats)
     return(fabc)
 
 
-def simulate(model, demodict, ix, parfx, parlist, thetaarray, rhoarray, scrm):
-    """Runs scrm by building 1 file with lines equal to it[eration]s. Each line
-    is then executed in the shell and output is printed to a file with
-    parameter choices in the file name. The loci parameter controls the size of
-    the fragment.
+def simulate(model, demodict, ix, parfx, parlist, thetaarray, rhoarray, ms):
+    """Runs simulations by building 1 file with lines equal to it[eration]s.
+    Each line is then executed in the shell and output is printed to a file
+    with parameter choices in the file name. The loci parameter controls the
+    size of the fragment.
     Example: its = 10,000 will produce a file with 10,000 lines that
     when executed will create 10,000 output files.
     """
@@ -181,7 +182,7 @@ def simulate(model, demodict, ix, parfx, parlist, thetaarray, rhoarray, scrm):
                           Ne)
     # all to dict
     ms_params = {
-                'scrm': scrm,
+                'ms': ms,
                 'nhaps': sum(model["sampleSize"]),
                 'loci': model["loci"],
                 'theta': theta,
@@ -194,7 +195,7 @@ def simulate(model, demodict, ix, parfx, parlist, thetaarray, rhoarray, scrm):
                 'demo': " ".join(dem_events)
                  }
     # scrm command line
-    scrm_base = ("{scrm}scrm {nhaps} {loci} -t {theta} -r {rho} {basepairs} "
+    scrm_base = ("{ms} {nhaps} {loci} -t {theta} -r {rho} {basepairs} "
                  "{subpops} {ne_subpop} {growth_subpop} -ma {migmat} {demo} "
                  "-p 12")
     mscmd = scrm_base.format(**ms_params)
@@ -258,15 +259,15 @@ if __name__ == "__main__":
                                      parlist,
                                      thetaarray,
                                      rhoarray,
-                                     args.scrm)
+                                     args.ms)
             # =================================================================
             # Parse
             # =================================================================
             msout = subprocess.Popen(mscmd, shell=True, stdout=subprocess.PIPE)
             print(mscmd)
             print("\nsim complete ... reading file")
-            gtlist, pos, pops, block, scrmline, seed = read_msformat(msout)
-            # gtlist,pos,pops,block,scrmline,seed = read_msformat_file(base)
+            gtlist, pos, pops, block, msline, seed = read_msformat(msout)
+            # gtlist,pos,pops,block,msline,seed = read_msformat_file(base)
             # =================================================================
             # Stats
             # =================================================================
@@ -276,7 +277,7 @@ if __name__ == "__main__":
             # =================================================================
             fabc = writeABC(stats,
                             seed,
-                            scrmline,
+                            msline,
                             params,
                             parlist,
                             ix,

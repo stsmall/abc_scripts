@@ -38,12 +38,20 @@ class Model(object):
         for i, event in enumerate(parlist):
             if 'a' in event:
                 # a here means append to previous time
-                if type(params[i-1]) is list:
-                    a = params[i] + params[i-1][0]
-                    timedict[a].append([event[1:]])
+                if params[i] <= 1:
+                    if type(params[i-1]) is list:
+                        a = params[i] * params[i-1][0]
+                        timedict[a].append([event[1:]])
+                    else:
+                        a = params[i] * params[i-1]
+                        timedict[a].append([event[1:]])
                 else:
-                    a = params[i] + params[i-1]
-                    timedict[a].append([event[1:]])
+                    if type(params[i-1]) is list:
+                        a = params[i] + params[i-1][0]
+                        timedict[a].append([event[1:]])
+                    else:
+                        a = params[i] + params[i-1]
+                        timedict[a].append([event[1:]])
             else:
                 if type(params[i]) is list:
                     timedict[params[i][0]].append([event])
@@ -140,6 +148,7 @@ class Model(object):
     def modelMig_scrm(self, od, Ne, npops):
         """
         """
+        d = False
         dem_list = []
         sourcelist = []
         for k, event in od.items():
@@ -195,20 +204,30 @@ class Model(object):
                     if any(i in sourcelist for i in v[0]):
                         raise Exception("something wrong in es")
                     else:
+                        npops += 1
                         dem_list.append("-es {} {} {}".format(k/(4*Ne), v[0][2], v[1]))
                         dem_list.append("-ej {} {} {}".format(k/(4*Ne), v[0][2], v[0][3]))
-                        dem_list.append("-ej {} {} {}".format(k/(4*Ne), npops+1, v[0][4]))
+                        dem_list.append("-ej {} {} {}".format(k/(4*Ne), npops, v[0][4]))
                         dem_list.append("-eg {} {} {}".format(k/(4*Ne), v[0][2], 0))
                         dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][2], v[0][3], 0))
                         dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][3], v[0][2], 0))
                         dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][2], v[0][4], 0))
                         dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][4], v[0][2], 0))
                         sourcelist.append(v[0][2])
+                elif "tm" in v[0]:
+                    ev = k/(4*Ne)
+                    evS = v[0][1:]
+                    d = True
+                elif "pm" in v[0]:
+                    pm = k
+        if d:
+            dem_list.append("-ev {} {} {} {}".format(ev, evS[0], evS[1], pm))
         return(dem_list)
 
     def model_scrm(self, od, Ne, npops):
         """
         """
+        d = False
         dem_list = []
         sourcelist = []
         for k, event in od.items():
@@ -246,12 +265,21 @@ class Model(object):
                     if any(i in sourcelist for i in v[0]):
                         raise Exception("something wrong in es")
                     else:
+                        npops += 1
                         dem_list.append("-es {} {} {}".format(k/(4*Ne), v[0][2], v[1]))
                         dem_list.append("-ej {} {} {}".format(k/(4*Ne), v[0][2], v[0][3]))
-                        dem_list.append("-ej {} {} {}".format(k/(4*Ne), npops+1, v[0][4]))
+                        dem_list.append("-ej {} {} {}".format(k/(4*Ne), npops, v[0][4]))
                         dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][2], v[0][3], 0))
                         dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][3], v[0][2], 0))
                         dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][2], v[0][4], 0))
                         dem_list.append("-em {} {} {} {}".format(k/(4*Ne), v[0][4], v[0][2], 0))
                         sourcelist.append(v[0][2])
+                elif "tm" in v[0]:
+                    ev = k/(4*Ne)
+                    evS = v[0][1:]
+                    d = True
+                elif "pm" in v[0]:
+                    pm = k
+        if d:
+            dem_list.append("-ev {} {} {} {}".format(ev, evS[0], evS[1], pm))
         return(dem_list)

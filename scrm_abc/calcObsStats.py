@@ -30,7 +30,7 @@ args = parser.parse_args()
 def makeh5fromvcf(vcfin, altnum, hf5):
     """
     """
-    h5out = "{}.h5".format(vcfin.split(".")[:-2])
+    h5out = "{}.h5".format(vcfin)
     if hf5:
         pass
     else:
@@ -68,6 +68,7 @@ def asfsStatsSeg(gt, pops, chrm, rand=True, plot=False):
         vidx.sort()
         gtp = gtseg.take(vidx, axis=0)
         sfsp = (allel.sfs(gtp.count_alleles()[:, 1]))
+        print(sfsp)
         if plot:
             fig, ax = plt.subplots(figsize=(6, 6))
             allel.stats.plot_sfs(sfsp, ax=ax)
@@ -205,22 +206,28 @@ def jsfsStats(gt, pops, chrm, fold=False, plot=False):
     return(jsfslist)
 
 
-def asfsStats(gt, pops, chrm, plot=False):
+def asfsStats(gt, pops, chrm, rand=True, plot=False):
     """Aggregate SFS, singletons and doubletons
     """
     print("asfs")
-    n = 100000  # number of SNPs to choose randomly
-    try:
-        vidx = np.random.choice(gt.shape[0], n, replace=False)
-    except ValueError:
-        vidx = np.random.choice(gt.shape[0], gt.shape[0], replace=False)
-    vidx.sort()
-    gtr = gt.take(vidx, axis=0)
+    if rand:
+        n = 100000  # number of SNPs to choose randomly
+        try:
+            vidx = np.random.choice(gt.shape[0], n, replace=False)
+        except ValueError:
+            vidx = np.random.choice(gt.shape[0], gt.shape[0], replace=False)
+        vidx.sort()
+        gtr = gt.take(vidx, axis=0)
+    else:
+        gtr = gt
     aSFS1 = []
     aSFS2 = []
     for p in pops:
         gtp = gtr.take(p, axis=1)
         sfsp = (allel.sfs(gtp.count_alleles()[:, 1]))
+        print(c)
+        print(sfsp)
+        print(np.sum(sfsp))
         if plot:
             fig, ax = plt.subplots(figsize=(6, 6))
             allel.stats.plot_sfs(sfsp, ax=ax)
@@ -243,9 +250,9 @@ if __name__ == "__main__":
     jsfsdict = {}
     for c in chrlist:
         var.geno(c, meta)
-        sfsdict[c] = asfsStatsSeg(var.gt, pops, c, rand=False, plot=False)
-        #sfsdict[c] = asfsStats(var.gt, pops, c)
-        jsfsdict[c] = jsfsStatsSeg(var.gt, pops, c, fold=False, rand=False, plot=False)
+        #sfsdict[c] = asfsStatsSeg(var.gt, pops, c, rand=False, plot=False)
+        sfsdict[c] = asfsStats(var.gt, pops, c, rand=False, plot=False)
+        #jsfsdict[c] = jsfsStatsSeg(var.gt, pops, c, fold=False, rand=False, plot=True)
         #jsfsdict[c] = jsfsStats(var.gt, pops, c)
 
     # asfs
@@ -270,8 +277,8 @@ if __name__ == "__main__":
             p.append(chrm[pairs])
         jsfs.append(np.mean(np.vstack(p), axis=0))
     # write out
-    s1 = " ".join(map(str,list(s1array)))
-    s2 = " ".join(map(str,list(s2array)))
+    s1 = " ".join(map(str, list(s1array)))
+    s2 = " ".join(map(str, list(s2array)))
     j23 = " ".join(map(str, np.concatenate(jsfs).ravel()))
     f = open("Observed_summStats.out", 'w')
     f.write("{} {} {}\n".format(s1, s2, j23))

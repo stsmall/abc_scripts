@@ -216,10 +216,9 @@ class Model(object):
                         sourcelist.append(v[0][2])
                 elif "tm" in v[0]:
                     ev = k/(4*Ne)
-                    evS = v[0][1:]
+                    evS = v[0][2:]
+                    pm = v[1]
                     d = True
-                elif "pm" in v[0]:
-                    pm = k
         if d:
             dem_list.append("-ev {} {} {} {}".format(ev, evS[0], evS[1], pm))
         return(dem_list)

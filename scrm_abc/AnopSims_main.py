@@ -133,6 +133,12 @@ def writeABC(stats, seed, scrmline, params, parlist, ix, block, filetpath,
         # cut -d" " -f 4-26
         nalist = None
         par.insert(0, 'NA')
+    elif ix == 9:
+        # version of model 6 to infer mMax and mIso
+        # 'NA es4 esa4 es3 es3a ej15 ej25 em m12 m21 em mMax35 mIso35 mMax45 mIso45 mMax25 mIso45'
+        # cut -d" " -f 4-26
+        nalist = None
+        par.insert(0, 'NA')
     else:
         pass
 

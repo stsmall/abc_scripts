@@ -148,7 +148,6 @@ class Model(object):
     def modelMig_scrm(self, od, Ne, npops):
         """
         """
-        d = False
         dem_list = []
         sourcelist = []
         for k, event in od.items():
@@ -218,15 +217,12 @@ class Model(object):
                     ev = k/(4*Ne)
                     evS = v[0][2:]
                     pm = v[1]
-                    d = True
-        if d:
-            dem_list.append("-ev {} {} {} {}".format(ev, evS[0], evS[1], pm))
+                    dem_list.append("-ev {} {} {} {}".format(ev, evS[0], evS[1], pm))
         return(dem_list)
 
     def model_scrm(self, od, Ne, npops):
         """
         """
-        d = False
         dem_list = []
         sourcelist = []
         for k, event in od.items():
@@ -277,7 +273,5 @@ class Model(object):
                     ev = k/(4*Ne)
                     evS = v[0][2:]
                     pm = v[1]
-                    d = True
-        if d:
-            dem_list.append("-ev {} {} {} {}".format(ev, evS[0], evS[1], pm))
+                    dem_list.append("-ev {} {} {} {}".format(ev, evS[0], evS[1], pm))
         return(dem_list)

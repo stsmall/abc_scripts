@@ -25,9 +25,12 @@ for file in chrmfiles:
             for line in stats:
                 x = line.split()
                 xx = np.array(map(float, x[4:]))
-                xx[np.isinf(xx)] = 'nan'
+                if any(np.isinf(xx)) or any(np.isnan(xx)):
+                    continue
                 v.append(xx)
         except StopIteration:
             break
-p = np.nanmean(np.vstack(v), axis=0)
-print("{}".format(" ".join(map(str,p))))
+p = np.mean(np.vstack(v), axis=0)
+r = np.std(np.vstack(v), axis=0)
+print("{}".format(" ".join(map(str, p))))
+print("{}".format(" ".join(map(str, r))))

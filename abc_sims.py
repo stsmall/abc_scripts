@@ -43,7 +43,8 @@ def simulate(model_dict,
              ms_path,
              ploidy,
              rho_mu,
-             anc_size):
+             anc_size,
+             tbd):
     """Create a single instance of a call to ms/msmove.
 
     Parameters defined by priors and distributions in model and config files.
@@ -102,7 +103,7 @@ def simulate(model_dict,
     migmat = [val for sublist in miglist for val in sublist]
 
     # random draws for parameters
-    params_list = get_dist(par_gen)
+    params_list = get_dist(tbd, par_gen)
     params_list.reverse()
     # build model
     model = Model()
@@ -249,7 +250,8 @@ if __name__ == "__main__":
                   }
 
     model_file_path = os.path.join(config_path, model_file)
-    par_gen, par_list, demo_dict = drawParams(model_file_path)
+    tbd, par_gen, par_list, demo_dict = drawParams(model_file_path)
+    tbd.reverse()
     sim_path = os.path.join(config_path, f"{outfile}.{sim_number}.sims.out")
     priors_outfile = open(f"{sim_path}.priors", 'w')
     priors_list = write_priors(par_list, [], header_only=True)
@@ -265,7 +267,8 @@ if __name__ == "__main__":
                                      ms_path,
                                      ploidy,
                                      rho_mu,
-                                     ancestral_size)
+                                     ancestral_size,
+                                     tbd)
             priors_list = write_priors(par_list, params, header_only=False)
             priors_outfile.write("{}\n".format("\t".join(priors_list)))
             f.write("{} >> {}\n".format(mscmd, outfile))

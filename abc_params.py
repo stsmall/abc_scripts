@@ -142,7 +142,7 @@ def constant(low, high):
     return(c)
 
 
-def get_dist(par_gen):
+def get_dist(tbd_list, par_gen):
     """Create parameter list from function list."""
     # TODO: tbi can only be in first distribution
     params_list = []
@@ -152,15 +152,13 @@ def get_dist(par_gen):
         px = par_gen[i]
         if type(px) is list:
             dist, low, high = px[0]
-            try:
-                rr = dist(low, high)
-            except TypeError:
-                try:
-                    rr = dist(low, tmp_list[-1])
-                except TypeError:
-                    l_ix = int(low[-1])+1
-                    h_ix = int(high[-1])+1
-                    rr = dist(tmp_list[-l_ix], tmp_list[-h_ix])
+            if type(low) == str:
+                l_ix = tbd_list.index(low)
+                low = tmp_list[l_ix]
+            if type(high) == str:
+                h_ix = tbd_list.index(high)
+                high = tmp_list[h_ix]
+            rr = dist(low, high)
             tmp_list.append(rr)
             dist, low, high = px[1]
             rrf = dist(low, high)
@@ -172,15 +170,13 @@ def get_dist(par_gen):
                 params_list.append([rr, rrf])
         else:
             dist, low, high = px
-            try:
-                rr = dist(low, high)
-            except TypeError:
-                try:
-                    rr = dist(low, tmp_list[-1])
-                except TypeError:
-                    l_ix = int(low[-1]) + 1
-                    h_ix = int(high[-1]) + 1
-                    rr = dist(tmp_list[-l_ix], tmp_list[-h_ix])
+            if type(low) == str:
+                l_ix = tbd_list.index(low)
+                low = tmp_list[l_ix]
+            if type(high) == str:
+                h_ix = tbd_list.index(high)
+                high = tmp_list[h_ix]
+            rr = dist(low, high)
             params_list.append(rr)
             tmp_list.append(rr)
         i -= 1
@@ -208,6 +204,7 @@ def drawParams(params_file):
     par_gen = []
     par_list = []
     demo_dict = defaultdict(list)
+    tbd_list = []
     pattern = re.compile(r'(r[aA-zZ]+) (tbi\d|0?.?\d*) (tbi\d|0?.?\d*)')
     with open(params_file, 'r') as par:
         for line in par:
@@ -216,7 +213,7 @@ def drawParams(params_file):
                 pass
             elif line.startswith("tbi"):
                 parms = line.split()
-                tbd = parms[0]
+                tbd_list.append(parms[0])
                 event = parms[1]
                 pops = parms[2]
                 par_list.append(f"{event}{pops}")
@@ -280,4 +277,4 @@ def drawParams(params_file):
                 Ne = parms[3]
                 growth = parms[4]
                 demo_dict[int(time)].append([f"{event}_{pop}_{Ne}_{growth}"])
-    return(par_gen, par_list, demo_dict)
+    return(tbd_list, par_gen, par_list, demo_dict)

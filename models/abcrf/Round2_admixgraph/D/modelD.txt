@@ -5,9 +5,9 @@
 # litte info about tbi1 (F/U) and tbi3 (V/L) in the data from ABC
 tbiX tm 25 rUintL tbi4 tbi5 rUflt 0.63 0.88
 tbi0 tm 12 rUintL 200000 tbi1 rUflt 0.36 0.81
-*tbi1 ej 16 rUintL 500000 1200000
+tbi1 ej 16 rUintL 500000 1200000
 tbi2 tm 32 rUintL 1200000 tbi3 rUflt 0.65 0.999
-*tbi3 ej 34 rUintL 1350000 2300000
+tbi3 ej 34 rUintL 1350000 2300000
 tbi4 ej 45 rUintL 2400000 tbi5
 tbi5 ej 26 rUintL 2400000 tbi6
 tbi6 ej 56 rUintL 4000000 7500000

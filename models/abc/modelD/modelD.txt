@@ -1,22 +1,18 @@
-#time pop event params, rUintL
-#to be inferred: Fun_moz 1, Like 2, Van 3, Lon 4, Par 5
-# P->L 154995-355830
-# K->F 158283-475241
-# P->V tm 35 517688-593953
-# L/V ej 43 607821-812396
-# K->P tm 52 1190000; lt V/P
-# K->(VL) tm 32 1560000; lt V/P
-# V/P 1288640-1929080
-# F/P 2360000-3229220
-# K/P 3781905-4217990 # KP ABC
-tbi1 tm 45 rUintL 154995 355830 rUflt 0.1 0.9
-tbi2 tm 12 rUintL 158283 475241 rUflt 0.1 0.9
-tbi3 tm 32 rUintL 926681 1128378 rUflt 0.1 0.9
-tbi3 ej 43 rUintL 600000 1288640 
-tbi5 ej 35 rUintL 1288650 1929080
-tbi6 ej 15 rUintL 2360000 3229220
-tbi7 ej 52 rUintL 3781905 4217990 
+#to be inferred: Fun_moz 1, Like 2, Van 3, Lon 4, Par 5, Unk 6
+# es time p1 p2 1-admx
+# tm time p1 p2 admx
+# ea time p1 p2 p1 admx
+# litte info about tbi1 (F/U) and tbi3 (V/L) in the data from ABC
+tbi0 tm 12 rUintL 500000 950000 rUflt 0.36 0.81
+tbi1 tm 32 rUintL 1200000 tbi2 rUflt 0.65 0.999
+tbi2 ej 34 rUintL 1350000 2200000
+tbi3 ej 45 rUintL 2300000 tbi4
+tbi4 tm 25 rUintL 1500000 tbi6 rUflt 0.63 0.88
+tbi5 ej 16 rUintL 1500000 tbi6
+tbi6 ej 26 rUintL 1932005 3650000
+tbi7 ej 56 rUintL 3870000 6360000
 #moz demography
+tbi Ne 1 rC 0.0 0.0 rUintL 100000 1000000 rC 0.0 0.0
 3432 Ne 1 178924 0
 7801 Ne 1 178924 0
 13361 Ne 1 268598 0
@@ -45,6 +41,7 @@ tbi7 ej 52 rUintL 3781905 4217990
 6648393 Ne 1 1466164 0
 8465536 Ne 1 1523946 0
 #Like demography
+tbi Ne 2 rC 0.0 0.0 rUintL 1000 100000 rC 0.0 0.0
 4487 Ne 2 20993 0
 6864 Ne 2 35317 0
 9889 Ne 2 60133 0
@@ -74,6 +71,7 @@ tbi7 ej 52 rUintL 3781905 4217990
 4608143 Ne 2 827958 0
 5866393 Ne 2 1391014 0
 #Van demography
+tbi Ne 3 rC 0.0 0.0 rUintL 1000 100000 rC 0.0 0.0
 11292 Ne 3 117587 0
 17273 Ne 3 327350 0
 24886 Ne 3 654873 0
@@ -93,6 +91,7 @@ tbi7 ej 52 rUintL 3781905 4217990
 1029564 Ne 3 751753 0
 1313336 Ne 3 782992 0
 #Lon demography
+tbi Ne 4 rC 0.0 0.0 rUintL 1000 100000 rC 0.0 0.0
 13690 Ne 4 92530 0
 20941 Ne 4 369542 0
 30171 Ne 4 971981 0
@@ -111,6 +110,7 @@ tbi7 ej 52 rUintL 3781905 4217990
 977918 Ne 4 867631 0
 1248214 Ne 4 893988 0
 #Par demography
+tbi Ne 5 rC 0.0 0.0 rUintL 10000 10000 rC 0.0 0.0
 11158 Ne 5 70861 0
 17069 Ne 5 165020 0
 24591 Ne 5 354435 0
@@ -135,3 +135,12 @@ tbi7 ej 52 rUintL 3781905 4217990
 3423179 Ne 5 1215938 0
 4359893 Ne 5 1355381 0
 5552179 Ne 5 1507504 0
+#unknown demography
+tbi Ne 6 rC 0.0 0.0 rUintL 10000 100000 rC 0.0 0.0
+tbi Ne 6 rUintL 1000 10000 rUintL 10000 100000 rC 0.0 0.0
+tbi Ne 6 rUintL 10000 100000 rUintL 100000 500000 rC 0.0 0.0
+tbi Ne 6 rUintL 100000 1000000 rUintL 500000 1000000 rC 0.0 0.0
+2687225 Ne 6 1090732 0
+3423179 Ne 6 1215938 0
+4359893 Ne 6 1355381 0
+5552179 Ne 6 1507504 0

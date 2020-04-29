@@ -1,0 +1,69 @@
+# model w/ gradual isolation ... may not use again
+
+def gradIso(self, timedict, Ne, mMaxdict, mIsodict, t_ints=10):
+"""
+"""
+migdict = defaultdict(list)
+# calculate these in coal time, then transform into gens
+if any(["X" in i for i in mMaxdict.keys()]):
+    # single value for all
+    mMax = list(mMaxdict.values())[0]
+    mIso = list(mIsodict.values())[0]
+    NemMax = mMax * 4*Ne
+    tsc = mIso/(4*Ne)
+    for td in list(timedict.keys()):
+        if 'ej' in timedict[td][0][0] or 'es' in timedict[td][0][0]:
+            # ts = mIso_list  # list of different speciation/isolation times
+            tdc = td/(4*Ne)
+            if tdc-tsc < 0:
+                tlin = np.linspace(0, tdc, t_ints)
+                mlist = [(NemMax/(tdc+tsc))*(t+tsc) for t in tlin]
+            else:
+                tlin = np.linspace(tdc-tsc, tdc, t_ints)
+                # tlist = [np.round(t) for t in tlin]
+                mlist = [(NemMax/(tdc-(tdc-tsc)))*(t-(tdc-tsc)) for t in tlin]
+            for t, m in zip(tlin, mlist):
+                migdict[np.round(t*4*Ne)].append(['mg' + timedict[td][0][0][2:], m/(4*Ne)])
+        else:
+            pass
+else:
+    for mi in mMaxdict.keys():
+        sp = mi[4:]
+        mMax = mMaxdict[mi]
+        mIso = mIsodict["mIso{}".format(sp)]
+        ej = "ej{}".format(sp)
+        es = "es{}".format(sp)
+        for td in list(timedict.keys()):
+            if ej == timedict[td][0][0]:
+                NemMax = mMax * 4*Ne
+                tsc = mIso/(4*Ne)
+                tdc = td/(4*Ne)
+                if tdc-tsc < 0:
+                    tlin = np.linspace(0, tdc, t_ints)
+                    mlist = [(NemMax/(tdc+tsc))*(t+tsc) for t in tlin]
+                else:
+                    tlin = np.linspace(tdc-tsc, tdc, t_ints)
+                    # tlist = [np.round(t) for t in tlin]
+                    mlist = [(NemMax/(tdc-(tdc-tsc)))*(t-(tdc-tsc)) for t in tlin]
+                for t, m in zip(tlin, mlist):
+                    migdict[np.round(t*4*Ne)].append(['mg' + timedict[td][0][0][2:], m/(4*Ne)])
+            elif es == timedict[td][0][0]:
+                sp_pair = ["{}".format(es[2:-1]),"{}{}".format(es[2], es[-1])]
+                for i, mmax in enumerate(mMax):
+                    NemMax = mmax * 4*Ne
+                    tsc = mIso[i]/(4*Ne)
+                    tdc = td/(4*Ne)
+                    if tdc-tsc < 0:
+                        tlin = np.linspace(0, tdc, t_ints)
+                        mlist = [(NemMax/(tdc+tsc))*(t+tsc) for t in tlin]
+                    else:
+                        tlin = np.linspace(tdc-tsc, tdc, t_ints)
+                        # tlist = [np.round(t) for t in tlin]
+                        mlist = [(NemMax/(tdc-(tdc-tsc)))*(t-(tdc-tsc)) for t in tlin]
+                    for t, m in zip(tlin, mlist):
+                        migdict[np.round(t*4*Ne)].append(['mg' + sp_pair[i], m/(4*Ne)])
+            else:
+                pass
+return(migdict)
+
+

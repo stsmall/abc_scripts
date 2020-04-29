@@ -7,34 +7,15 @@ anopSims_main.py --cfg FILE.cfg --model 1
 
 @author: stsmall
 """
-from __future__ import print_function
-from __future__ import division
 import sys
 import numpy as np
 import msprime as msp
 import allel
 from collections import defaultdict
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
 from anopParams import drawParams
 from anopModels import Model
-#import anopStats
+import anopStats
 import argparse
-# check versions
-#assert sys.version_info[0] >= 3
-assert msp.__version__ == "0.6.0"
-assert allel.__version__ == "1.1.10"
-
-parser = argparse.ArgumentParser()
-parser.add_argument('-cfg', "--configFile", required=True,
-                    help="config file")
-parser.add_argument('-m', "--model_ix", type=int, required=True,
-                    help="model index")
-parser.add_argument('-i', "--iterations", type=int, required=True,
-                    help="number of iterations")
-args = parser.parse_args()
 
 
 def checkDemo(popconfig, migmat, demoevents):
@@ -50,25 +31,6 @@ def checkDemo(popconfig, migmat, demoevents):
     #f.write("{}".format(dd.print_history()))
     #f.close()
     return(None)
-
-
-def writeABC(stats_file, stats_out, params_out):
-    """Prints results of simulations and stats to text file
-
-    Parameters
-    ------
-    stats_file: openFile
-    stats_out: list of calculated stats
-    params_out: list of input parameters
-
-    Returns
-    ------
-    stats_file: openFile
-
-    """
-
-    return(stats_file)
-
 
 def simulate(model, demodict, ix, parfx, parlist, thetaarray, rhoarray):
     """Runs msprime with model
@@ -148,53 +110,3 @@ def setInitial(sampleSize, intitialSize, growthRate):
     return(pop_config)
 
 
-if __name__ == "__main__":
-    config = configparser.ConfigParser()
-    config.read(args.configFile)
-    #
-    sh = "simulation"
-    contiglen = config.getint(sh, "contiglen")
-    loci = config.getint(sh, "loci")
-    recombRate = config.getfloat(sh, "recombination_rate")
-    mutationRate = config.getfloat(sh, "mutation_rate")
-    effectiveSize = config.getint(sh, "effective_population_size")
-    #
-    sh = "initialize"
-    sampleSize = list(map(int, config.get(sh, "sample_sizes").split(",")))
-    initialSize = list(map(int, config.get(sh, "initial_sizes").split(",")))
-    growthRate = list(map(float, config.get(sh, "growth_rates").split(",")))
-    #
-    migFile = config.get(sh, "migration_matrix")
-    migration_matrix = np.genfromtxt(migFile, delimiter=",")
-    #
-    mMax = config.getfloat(sh, "mMax")
-    mIso = config.getint(sh, "mIso")
-    #
-    sh = "parameters"
-    thetaFile = config.get(sh, "theta_distribution")
-    thetaarray = np.loadtxt(thetaFile)
-    rhoFile = config.get(sh, "rho_distribution")
-    rhoarray = np.loadtxt(rhoFile)
-    paramFile = config.get(sh, "params")
-    parfx, parlist, demodict = drawParams(paramFile)
-    # start functions
-    popcfg = setInitial(sampleSize, initialSize, growthRate)
-    model = {"contig_length": contiglen,
-             "Ne": effectiveSize,
-             "recombination_rate": recombRate,
-             "mutation_rate": mutationRate,
-             "loci": loci,
-             "migMat": migration_matrix.tolist(),
-             "pop_config": popcfg,
-             "mMax": mMax,
-             "mIso": mIso
-             }
-    for i in range(args.iterations):
-        simulate(model,
-                 demodict,
-                 args.model_ix,
-                 parfx,
-                 parlist,
-                 thetaarray,
-                 rhoarray
-                 )

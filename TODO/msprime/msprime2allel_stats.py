@@ -74,21 +74,6 @@ class Simstats:
             jsfslist.append(jsfsarray)
         return(jsfslist)
 
-    def treeStats(self, treelist, npop):
-        """Tree stats with msprime
-        """
-        for ts in treelist:
-            x = msp.GeneralStatCalculator(ts)
-            y = msp.BranchLengthStatCalculator(ts)
-            z = msp.SiteStatCalculator(ts)
-
-    def filetStats(self, treelist, npop):
-        """use filet for stats array
-        """
-
-
-
-
 
 
 

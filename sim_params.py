@@ -9,7 +9,6 @@ module for generating draws from priors for filet_sims.py
 
 import numpy as np
 from collections import defaultdict
-from functools import partial
 from math import log
 import re
 
@@ -142,45 +141,31 @@ def constant(low, high):
     return(c)
 
 
-def get_dist(tbd_list, par_gen):
+def get_dist(par_dict):
     """Create parameter list from function list."""
-    # TODO: tbi can only be in first distribution
-    params_list = []
-    tmp_list = []
-    i = -1
-    while abs(i) <= len(par_gen):
-        px = par_gen[i]
-        if type(px) is list:
-            dist, low, high = px[0]
-            if type(low) == str:
-                l_ix = tbd_list.index(low)
-                low = tmp_list[l_ix]
-            if type(high) == str:
-                h_ix = tbd_list.index(high)
-                high = tmp_list[h_ix]
-            rr = dist(low, high)
-            tmp_list.append(rr)
-            dist, low, high = px[1]
-            rrf = dist(low, high)
-            if len(px) > 2:
-                dist, low, high = px[2]
-                rrfc = dist(low, high)
-                params_list.append([rr, rrf, rrfc])
-            else:
-                params_list.append([rr, rrf])
-        else:
-            dist, low, high = px
-            if type(low) == str:
-                l_ix = tbd_list.index(low)
-                low = tmp_list[l_ix]
-            if type(high) == str:
-                h_ix = tbd_list.index(high)
-                high = tmp_list[h_ix]
-            rr = dist(low, high)
-            params_list.append(rr)
-            tmp_list.append(rr)
-        i -= 1
-    return(params_list)
+    event_dict = {}
+    key_count = list(par_dict.keys())
+    while len(key_count) > 0:
+        keys = key_count
+        for tbi in keys:
+            tmp_list = []
+            for event in par_dict[tbi]:
+                dist, low, high = event
+                if any(type(t) == str for t in event):
+                    try:
+                        if type(low) == str:
+                            low = event_dict[low][0]
+                        if type(high) == str:
+                            high = event_dict[high][0]
+                        tmp_list.append(dist(low, high))
+                    except KeyError:
+                        break
+                else:
+                    tmp_list.append(dist(low, high))
+            if tmp_list:
+                event_dict[tbi] = tmp_list
+                key_count.remove(tbi)
+    return(event_dict)
 
 
 def drawParams(params_file):
@@ -193,33 +178,34 @@ def drawParams(params_file):
 
     Returns
     -------
-    par_gen: gen
+    par_dict: Dict
         list of distributions
-    par_list: list
+    event_list: List
         par
     demo_dict: default dict
         dict
+    cond_list: List
+        list of parameter conditions like lt, gt
 
     """
-    par_gen = []
-    par_list = []
     demo_dict = defaultdict(list)
-    tbd_list = []
+    par_dict = {}
+    cond_list = []
+    event_dict = defaultdict(list)
     pattern = re.compile(r'(r[aA-zZ]+) (tbi\d|0?.?\d*) (tbi\d|0?.?\d*)')
     with open(params_file, 'r') as par:
         for line in par:
             if line.startswith("#"):
-                # indicates a comment line
                 pass
+            elif line.startswith("set"):
+                cond_list.append(line.split()[1:])
             elif line.startswith("tbi"):
-                parms = line.split()
-                tbd_list.append(parms[0])
-                event = parms[1]
-                pops = parms[2]
-                par_list.append(f"{event}{pops}")
-                rDist = re.findall(pattern, line)
+                tbi, event, pops, *_ = line.split()
+                event_str = f"{event}_{pops}"
+                event_dict[event_str].append(tbi)
+                r_dist = re.findall(pattern, line)
                 parPart = []
-                for y in rDist:
+                for y in r_dist:
                     dist = y[0]
                     low = y[1]
                     high = y[2]
@@ -234,22 +220,21 @@ def drawParams(params_file):
                     if "U" in dist:
                         if "int" in dist:
                             if "L" in dist:
-                                parPart.append((unifint_L, low, high))
+                                dist = unifint_L
                             else:
-                                parPart.append((unifint, low, high))
+                                dist = unifint
                         elif "flt" in dist:
-                            parPart.append((unif, low, high))
+                            dist = unif
+                        parPart.append((dist, low, high))
                     elif "N" in dist:
+                        mu = low
+                        sigma = high
                         if "int" in dist:
-                            # more confidence in prior for divergence, Ne
-                            mu = low
-                            sigma = high
-                            parPart.append((normint, mu, sigma))
+                            dist = normint
                         elif "log" in dist:
                             # draws values from normal then log tansforms (no 0s)
-                            mu = low
-                            sigma = high
-                            parPart.append((lognormint, mu, sigma))
+                            dist = lognormint
+                        parPart.append((dist, mu, sigma))
                     elif "B" in dist:
                         # more confidence on inheritance
                         a = low
@@ -264,17 +249,9 @@ def drawParams(params_file):
                     else:
                         print("not a recognized distribution")
                         raise ValueError
-                if len(rDist) > 1:
-                    par_gen.append(parPart)
-                else:
-                    par_gen.append(parPart[0])
+                par_dict[tbi] = parPart
             else:
                 # demography lists
-                parms = line.split()
-                time = parms[0]
-                event = parms[1]
-                pop = parms[2]
-                Ne = parms[3]
-                growth = parms[4]
-                demo_dict[int(time)].append([f"{event}_{pop}_{Ne}_{growth}"])
-    return(tbd_list, par_gen, par_list, demo_dict)
+                time, event, pop, Ne, growth = line.split()
+                demo_dict[int(time)].append(f"{event}_{pop}_{Ne}_{growth}")
+    return(cond_list, par_dict, event_dict, demo_dict)

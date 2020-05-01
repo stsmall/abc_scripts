@@ -304,6 +304,8 @@ def simulate(model_dict, demo_dict, par_dict, eventkey_dict, cond_list, ms_path)
                 time_dict[time]["Ne"].append(f"{event}_{size}_{grow}")
             else:
                 time, *params = params_dict[tbi]
+                if "ej" in event:
+                    params = [0]
                 time_dict[time][event] = params
     # build demographic command line
     model = Model()

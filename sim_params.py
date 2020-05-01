@@ -144,7 +144,7 @@ def constant(low, high):
 def get_dist(par_dict):
     """Create parameter list from function list."""
     event_dict = {}
-    key_count = list(par_dict.keys())
+    key_count = list(par_dict.keys()).copy()
     while len(key_count) > 0:
         keys = key_count
         for tbi in keys:

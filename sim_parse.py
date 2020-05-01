@@ -215,6 +215,7 @@ def split2pairs(msdict, outfile, p1, p2):
 
     """
     mshead = msdict["head"].copy()
+    infile = msdict["infile"]
     loci = msdict["loci"]
     basepairs = msdict["basepairs"]
     seed = msdict["seed"]
@@ -222,9 +223,9 @@ def split2pairs(msdict, outfile, p1, p2):
     seg = msdict["seg"]
     pos = msdict["pos"]
     haps = msdict["haps"]
-    if os.path.isfile(f"{p1}-{p2}.{outfile}"):
-        outfile = f"{msdict['infile']}.{np.random.random()}"
-    with open(f"{p1}-{p2}.{outfile}", 'w') as msout:
+    if os.path.isfile(f"{p1}-{p2}.{infile}.{outfile}"):
+        outfile = f"{p1}-{p2}.{infile}.{np.random.random()}.{outfile}"
+    with open(f"{p1}-{p2}.{infile}.{outfile}", 'w') as msout:
         if "ms" in mshead[0]:
             prog, nchrs, reps = mshead[0].split()
             r_ix = [i for i, r in enumerate(mshead) if r.startswith("r")]

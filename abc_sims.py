@@ -293,19 +293,21 @@ def simulate(model_dict, demo_dict, par_dict, eventkey_dict, cond_list, ms_path)
         lt, gt = condit
         assert params_dict[lt][0] < params_dict[gt][0]
 
-    event_dict = defaultdict(list)
-    for key in eventkey_dict.keys():
-        for event in eventkey_dict[key]:
-            if "Ne" in key:
-                time, size, grow = params_dict[event]
-                demo_dict[time].append(f"{key}_{size}_{grow}")
-            else:
-                event_dict[key].append(params_dict[event])
+    time_dict = defaultdict(lambda: defaultdict(list))
+    for time, event in demo_dict.items():
+        time_dict[time]["Ne"].extend(event)
 
+    for event in eventkey_dict.keys():
+        for tbi in eventkey_dict[event]:
+            if "Ne" in event:
+                time, size, grow = params_dict[tbi]
+                time_dict[time]["Ne"].append(f"{event}_{size}_{grow}")
+            else:
+                time, *params = params_dict[tbi]
+                time_dict[time][event] = params
     # build demographic command line
     model = Model()
-    dem_events = model.genDem(ms_dict, model_dict, demo_dict, event_dict, ms_path)
-
+    dem_events = model.genDem(ms_dict, model_dict, time_dict, ms_path)
     # gather command line args
     ms_params = {
                 'ms': ms_path,
@@ -333,7 +335,7 @@ def simulate(model_dict, demo_dict, par_dict, eventkey_dict, cond_list, ms_path)
 
     # ms/msmove/discoal/msprime command line
     mscmd = ms_base.format(**ms_params)
-    ms_cmd = re.sub(' +', ' ', mscmd)
+    ms_cmd = " ".join(mscmd.split())
     return(ms_cmd, params_dict)
 
 
@@ -529,8 +531,8 @@ if __name__ == "__main__":
             for i in trange(sim_number):
                 mscmd, params_dict = simulate(model_dict,
                                               demo_dict.copy(),
-                                              par_dict.copy(),
-                                              eventkey_dict.copy(),
+                                              par_dict,
+                                              eventkey_dict,
                                               conditions,
                                               ms_path)
                 priors_list = write_priors([], params_dict)

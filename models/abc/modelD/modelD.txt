@@ -21,6 +21,11 @@ tbi14 Ne 6 rUintL 1000 10000 rUintL 10000 100000 rC 0.0 0.0
 tbi15 Ne 6 rUintL 10000 100000 rUintL 100000 500000 rC 0.0 0.0
 tbi16 Ne 6 rUintL 100000 1000000 rUintL 500000 1000000 rC 0.0 0.0
 set tbi0 tbi5
+set tbi1 tbi2
+set tbi2 tbi3
+set tbi5 tbi6
+set tbi6 tbi7
+set tbi4 tbi6
 #moz demography
 3432 Ne 1 178924 0
 7801 Ne 1 178924 0

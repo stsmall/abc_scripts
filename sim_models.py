@@ -52,7 +52,7 @@ class Model(object):
             pass
             # dem_list = self.modelNoMig_msprime(ord_events, model_dict, ms_dict)
         else:
-            tm, dem_list = self.modelNoMig(ord_events, model_dict, ms_dict)
+            dem_list = self.modelNoMig(ord_events, model_dict, ms_dict)
         return dem_list
 
     def modelNoMig(self, ord_events, model_dict, ms_dict):

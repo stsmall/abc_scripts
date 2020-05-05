@@ -121,36 +121,42 @@ def ms_parse(infile):
         DESCRIPTION.
 
     """
-    loci = 0
     msdict = {}
     hap_list = []
     pos_list = []
-    seg_list = []
-
     with open(infile) as ms:
         line = next(ms)
         ms_head = line.split("-")
         if "ms" in ms_head[0]:
             prog, nchrs, reps = ms_head[0].split()
-            r_ix = [i for i, r in enumerate(ms_head) if r.startswith("r")]
+            r_ix = [i for i, r in enumerate(ms_head) if r.startswith("r")][0]
             r, rho, basepairs = ms_head[r_ix].split()
-            p_ix = [i for i, p in enumerate(ms_head) if p.startswith("I")]
+            basepairs, nchrs = int(basepairs), int(nchrs)
+            p_ix = [i for i, p in enumerate(ms_head) if p.startswith("I")][0]
             p, subpops, *subpopsizes = ms_head[p_ix].split()
-            subpopsizes = map(int, subpopsizes)
+            subpopsizes = list(map(int, subpopsizes))
         elif "discoal" in ms_head[0]:
             prog, nchrs, reps, basepairs = ms_head[0].split()
-            p_ix = [i for i, p in enumerate(ms_head) if p.startswith("p")]
+            basepairs, nchrs = int(basepairs), int(nchrs)
+            p_ix = [i for i, p in enumerate(ms_head) if p.startswith("p")][0]
             p, subpops, *subpopsizes = ms_head[p_ix].split()
-            subpopsizes = map(int, subpopsizes)
+            subpopsizes = list(map(int, subpopsizes))
         ind = 0
         popconfig = []
-        for p in subpopsizes:
-            popconfig.append(list(range(ind, p+ind)))
-            ind = p
-        seed = next(ms).split()
+        for pop in subpopsizes:
+            popconfig.append(list(range(ind, pop+ind)))
+            ind += pop
+        rep_haplist = []
+        rep_poslist = []
         for line in ms:
-            if line.startswith("seg"):
+            if line.startswith(prog):
+                hap_list.append(rep_haplist)
+                pos_list.append(rep_poslist)
+                rep_haplist = []
+                rep_poslist = []
+            elif line.startswith("seg"):
                 seg, seg_sites = line.strip().split()
+                seg_sites = int(seg_sites)
                 # no seg sites
                 if seg_sites == 0:
                     new_pos = []
@@ -158,39 +164,21 @@ def ms_parse(infile):
                     for i in range(nchrs):
                         hap_arr.append([])
                 else:
-                    seg_list.append(int(seg_sites))
-                    loci += 1
                     line = next(ms)
                     if line.startswith("positions"):
                         positions = line.strip().split()
                         pos_arr = np.array(positions[1:], dtype=np.float64)
                         new_pos = discrete_positions(pos_arr, basepairs)
                         # haps line
-                        line = next(ms)
-                        if line[0].isdigit:
-                            hap_arr = np.zeros((nchrs, pos_arr.shape[0]), dtype=np.uint8)
-                            cix = 0
-                            try:
-                                while line:
-                                    line = list(line.strip())
-                                    try:
-                                        hap_arr[cix, :] = np.array(line, dtype=np.uint8)
-                                    except IndexError:
-                                        break
-                                    cix += 1
-                                    line = next(ms)
-                            except StopIteration:
-                                hap_list.append(hap_arr)
-                                break
-                pos_list.append(new_pos)
-                hap_list.append(hap_arr)
-    msdict = {"infile": infile,
-              "head": ms_head,
-              "pops": popconfig,
-              "loci": loci,
+                        hap_arr = np.zeros((nchrs, pos_arr.shape[0]), dtype=np.uint8)
+                        for cix in range(nchrs):
+                            line = next(ms)
+                            line = list(line.strip())
+                            hap_arr[cix, :] = np.array(line, dtype=np.uint8)
+                rep_poslist.append(np.array(new_pos))
+                rep_haplist.append(hap_arr)
+    msdict = {"pops": popconfig,
               "basepairs": basepairs,
-              "seed": seed,
-              "seg": seg_list,
               "pos": pos_list,
               "haps": hap_list}
     return msdict
@@ -223,16 +211,19 @@ def split2pairs(msdict, outfile, p1, p2):
     seg = msdict["seg"]
     pos = msdict["pos"]
     haps = msdict["haps"]
-    if os.path.isfile(f"{p1}-{p2}.{infile}.{outfile}"):
-        outfile = f"{p1}-{p2}.{infile}.{np.random.random()}.{outfile}"
-    with open(f"{p1}-{p2}.{infile}.{outfile}", 'w') as msout:
+    outfile_name = f"{p1}-{p2}.{outfile}"
+    if os.path.exists(outfile_name):
+        infile_name = os.path.split(infile)[-1]
+        outfile_name = f"{p1}-{p2}.{infile_name}.{outfile}"
+    with open(outfile_name, 'w') as msout:
         if "ms" in mshead[0]:
             prog, nchrs, reps = mshead[0].split()
-            r_ix = [i for i, r in enumerate(mshead) if r.startswith("r")]
-            r, rho, basepairs = mshead[r_ix].split()
-            p_ix = [i for i, p in enumerate(mshead) if p.startswith("I")]
+            nchrs = int(nchrs)
+            # r_ix = [i for i, r in enumerate(mshead) if r.startswith("r")][0]
+            # r, rho, basepairs = mshead[r_ix].split()
+            p_ix = [i for i, p in enumerate(mshead) if p.startswith("I")][0]
             p, subpops, *subpopsizes = mshead[p_ix].split()
-            subpopsizes = map(int, subpopsizes)
+            subpopsizes = list(map(int, subpopsizes))
             # rewrite header
             n1 = subpopsizes[p1]
             n2 = subpopsizes[p2]
@@ -241,12 +232,13 @@ def split2pairs(msdict, outfile, p1, p2):
             new_subpopsizes[p1] = n1
             new_subpopsizes[p2] = n2
             mshead[0] = f"{prog} {new_size} {loci} "
-            mshead[p_ix] = f"I {subpops} {' ' .join(new_subpopsizes)} "
+            mshead[p_ix] = f"I {subpops} {' ' .join(map(str, new_subpopsizes))} "
         elif "discoal" in mshead[0]:
-            prog, nchrs, reps, basepairs = mshead[0].split()
-            p_ix = [i for i, p in enumerate(mshead) if p.startswith("p")]
+            prog, nchrs, reps, *_ = mshead[0].split()
+            nchrs = int(nchrs)
+            p_ix = [i for i, p in enumerate(mshead) if p.startswith("p")][0]
             p, subpops, *subpopsizes = mshead[p_ix].split()
-            subpopsizes = map(int, subpopsizes)
+            subpopsizes = list(map(int, subpopsizes))
             # rewrite header
             pop1 = subpopsizes[p1]
             pop2 = subpopsizes[p2]
@@ -255,18 +247,18 @@ def split2pairs(msdict, outfile, p1, p2):
             new_subpopsizes[p1] = pop1
             new_subpopsizes[p2] = pop2
             mshead[0] = f"{prog} {new_size} {loci} {basepairs} "
-            mshead[p_ix] = f"p {subpops} {' ' .join(new_subpopsizes)} "
-        msout.write(f"{'-'.join(mshead)}\n")
-        msout.write(f"{seed}\n\n")
+            mshead[p_ix] = f"p {subpops} {' ' .join(map(str, new_subpopsizes))} "
+        msout.write(f"{'-'.join(mshead)}")
+        msout.write(f"{seed}\n")
         # write geno data
         pop1 = popconfig[p1]
         pop2 = popconfig[p2]
-        for p, hapmat in zip(pos, haps):
+        for po, hapmat in zip(pos, haps):
             gt = hapmat[pop1 + pop2]
             seg_pos = np.sum(gt, axis=0)
             seg_mask = (seg_pos > 0) & (seg_pos < (n1 + n2))
             seg = np.count_nonzero(seg_mask)
-            posit = p[seg_mask]
+            posit = po[seg_mask] / basepairs
             gt_seg = gt[:, seg_mask]
             msout.write(f"\n//\nsegsites: {seg}\npositions: {' '.join(map(str, posit))}\n")
             for h in gt_seg:

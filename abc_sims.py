@@ -27,13 +27,13 @@ import sys
 import argparse
 import os
 import numpy as np
-import re
 import configparser
 from collections import defaultdict
 from tqdm import trange
 from sim_params import drawParams
 from sim_params import get_dist
 from sim_models import Model
+import logging
 
 
 def selection_parse(model_dict, ms_dict):
@@ -287,11 +287,16 @@ def simulate(model_dict, demo_dict, par_dict, eventkey_dict, cond_list, ms_path)
     else:
         sel_list = ''
 
-    # draw and organize for parameters
+    # draw and organize for parameters and check conditions
     params_dict = get_dist(par_dict)
     for condit in cond_list:
         lt, gt = condit
-        assert params_dict[lt][0] < params_dict[gt][0]
+        try:
+            if params_dict[lt][0] > params_dict[gt][0]:
+                raise ValueError("param set conditions not met {lt} {gt}")
+        except ValueError:
+            logging.exception(f"{lt} {params_dict[lt][0]} > {gt} {params_dict[gt][0]}")
+            return None, None
 
     time_dict = defaultdict(lambda: defaultdict(list))
     for time, event in demo_dict.items():
@@ -338,7 +343,7 @@ def simulate(model_dict, demo_dict, par_dict, eventkey_dict, cond_list, ms_path)
     # ms/msmove/discoal/msprime command line
     mscmd = ms_base.format(**ms_params)
     ms_cmd = " ".join(mscmd.split())
-    return(ms_cmd, params_dict)
+    return ms_cmd, params_dict
 
 
 def write_priors(eventkey_dict, params_dict):
@@ -376,7 +381,7 @@ def write_priors(eventkey_dict, params_dict):
                 else:
                     par_list.append(params)
             priors_list = map(str, par_list)
-        return("\t".join(priors_list))
+        return "\t".join(priors_list)
 
 
 def parse_args(args_in):
@@ -445,7 +450,7 @@ if __name__ == "__main__":
     mig_file_path = os.path.join(config_path, mig_file)
     migration_matrix = np.genfromtxt(mig_file_path, delimiter=",")
     if np.sum(migration_matrix) > 0:
-        assert len(sample_sizes) == migration_matrix.shape[0]
+        assert len(sample_sizes) == migration_matrix.shape[0], "require an entry for each population in mig matrix"
     #
     sel = "selection"
     add_sel = config.getboolean(sel, "sel")
@@ -537,6 +542,8 @@ if __name__ == "__main__":
                                               eventkey_dict,
                                               conditions,
                                               ms_path)
+                if mscmd is None or params_dict is None:
+                    continue
                 priors_list = write_priors([], params_dict)
                 priors_outfile.write(f"{priors_list}\n")
                 sims_outfile.write(f"{mscmd} >> {outfile}\n")

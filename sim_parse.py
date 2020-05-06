@@ -177,6 +177,8 @@ def ms_parse(infile):
                             hap_arr[cix, :] = np.array(line, dtype=np.uint8)
                 rep_poslist.append(np.array(new_pos))
                 rep_haplist.append(hap_arr)
+    hap_list.append(rep_haplist)
+    pos_list.append(rep_poslist)
     msdict = {"pops": popconfig,
               "basepairs": basepairs,
               "pos": pos_list,

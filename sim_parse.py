@@ -83,7 +83,7 @@ def discrete_positions(positions, totalPhysLen):
     prevIntPos = -1
     newPositions = []
     for position in positions:
-        assert position >= 0 and position < 1., "Mutations positions must all be in [0, 1)"
+        assert position >= 0 and position <= 1., "Mutations positions must all be in [0, 1)"
         assert position >= prevPos
         origPos = position
         if position == prevPos:

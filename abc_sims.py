@@ -256,7 +256,7 @@ def coalSimSyntax(ms_path, model_dict):
     return ms_dict
 
 
-def simulate(model_dict, demo_dict, par_dict, eventkey_dict, cond_list, ms_path):
+def simulate(model_dict, demo_dict, par_dict, eventkey_dict, cond_list, ms_path, tbs):
     """Create a single instance of a call to ms/msmove.
 
     Parameters
@@ -296,7 +296,8 @@ def simulate(model_dict, demo_dict, par_dict, eventkey_dict, cond_list, ms_path)
                 raise ValueError("param set conditions not met {lt} {gt}")
         except ValueError:
             logging.exception(f"{lt} {params_dict[lt][0]} > {gt} {params_dict[gt][0]}")
-            return None, None
+            params_dict[lt][0] = params_dict[gt][0] - 1
+            # return None, None
 
     time_dict = defaultdict(lambda: defaultdict(list))
     for time, event in demo_dict.items():
@@ -329,16 +330,21 @@ def simulate(model_dict, demo_dict, par_dict, eventkey_dict, cond_list, ms_path)
                 'growth_subpop': ms_dict["grow_subpop"],
                 'migmat': ms_dict["mig_matrix"],
                 'demo': " ".join(dem_events),
-                'sel': " ".join(sel_list)
-                }
+                'sel': " ".join(sel_list),
+                'tbs': tbs}
     if "discoal" in ms_path:
         ms_base = ("{ms} {nhaps} {loci} {basepairs} -t {theta} -r {rho} "
                    "{gen_cov} {subpops} {ne_subpop} {demo} {sel}")
     elif "msprime" in ms_path:
         pass
     else:
-        ms_base = ("{ms} {nhaps} {loci} -t {theta} -r {rho} {basepairs} "
-                   "{gen_cov} {subpops} {ne_subpop} {growth_subpop} {migmat} {demo}")
+        if tbs:
+            ms_base = ("{ms} {nhaps} {loci} -t tbs -r tbs {basepairs} "
+                       "{gen_cov} {subpops} {ne_subpop} {growth_subpop} {migmat} {demo} -f {tbs}")
+
+        else:
+            ms_base = ("{ms} {nhaps} {loci} -t {theta} -r {rho} {basepairs} "
+                       "{gen_cov} {subpops} {ne_subpop} {growth_subpop} {migmat} {demo}")
 
     # ms/msmove/discoal/msprime command line
     mscmd = ms_base.format(**ms_params)
@@ -495,6 +501,7 @@ if __name__ == "__main__":
 
     #
     par = "parameters"
+    tbs_file = config.get(par, "theta_rho_tbs")
     theta_file = config.get(par, "theta_distribution")
     theta_file_path = os.path.join(config_path, theta_file)
     theta_array = np.loadtxt(theta_file_path)
@@ -541,7 +548,8 @@ if __name__ == "__main__":
                                               par_dict,
                                               eventkey_dict,
                                               conditions,
-                                              ms_path)
+                                              ms_path,
+                                              tbs_file)
                 if mscmd is None or params_dict is None:
                     continue
                 priors_list = write_priors([], params_dict)

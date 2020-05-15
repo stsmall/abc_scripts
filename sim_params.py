@@ -195,63 +195,64 @@ def drawParams(params_file):
     pattern = re.compile(r'(r[aA-zZ]+) (tbi\d|0?.?\d*) (tbi\d|0?.?\d*)')
     with open(params_file, 'r') as par:
         for line in par:
-            if line.startswith("#"):
-                pass
-            elif line.startswith("set"):
-                cond_list.append(line.split()[1:])
-            elif line.startswith("tbi"):
-                tbi, event, pops, *_ = line.split()
-                event_str = f"{event}_{pops}"
-                event_dict[event_str].append(tbi)
-                r_dist = re.findall(pattern, line)
-                parPart = []
-                for y in r_dist:
-                    dist = y[0]
-                    low = y[1]
-                    high = y[2]
-                    if low.isdigit():
-                        low = int(y[1])
-                    elif "." in low:
-                        low = float(y[1])
-                    if high.isdigit():
-                        high = int(y[2])
-                    elif "." in high:
-                        high = float(y[2])
-                    if "U" in dist:
-                        if "int" in dist:
-                            if "L" in dist:
-                                dist = unifint_L
+            if line.strip():
+                if line.startswith("#"):
+                    pass
+                elif line.startswith("set"):
+                    cond_list.append(line.split()[1:])
+                elif line.startswith("tbi"):
+                    tbi, event, pops, *_ = line.split()
+                    event_str = f"{event}_{pops}"
+                    event_dict[event_str].append(tbi)
+                    r_dist = re.findall(pattern, line)
+                    parPart = []
+                    for y in r_dist:
+                        dist = y[0]
+                        low = y[1]
+                        high = y[2]
+                        if low.isdigit():
+                            low = int(y[1])
+                        elif "." in low:
+                            low = float(y[1])
+                        if high.isdigit():
+                            high = int(y[2])
+                        elif "." in high:
+                            high = float(y[2])
+                        if "U" in dist:
+                            if "int" in dist:
+                                if "L" in dist:
+                                    dist = unifint_L
+                                else:
+                                    dist = unifint
+                            elif "flt" in dist:
+                                dist = unif
+                            parPart.append((dist, low, high))
+                        elif "N" in dist:
+                            mu = low
+                            sigma = high
+                            if "int" in dist:
+                                dist = normint
+                            elif "log" in dist:
+                                # draws values from normal then log tansforms (no 0s)
+                                dist = lognormint
+                            parPart.append((dist, mu, sigma))
+                        elif "B" in dist:
+                            # more confidence on inheritance
+                            a = low
+                            b = high
+                            parPart.append((beta, a, b))
+                        elif "C" in dist:
+                            if low == high:
+                                parPart.append((constant, low, high))
                             else:
-                                dist = unifint
-                        elif "flt" in dist:
-                            dist = unif
-                        parPart.append((dist, low, high))
-                    elif "N" in dist:
-                        mu = low
-                        sigma = high
-                        if "int" in dist:
-                            dist = normint
-                        elif "log" in dist:
-                            # draws values from normal then log tansforms (no 0s)
-                            dist = lognormint
-                        parPart.append((dist, mu, sigma))
-                    elif "B" in dist:
-                        # more confidence on inheritance
-                        a = low
-                        b = high
-                        parPart.append((beta, a, b))
-                    elif "C" in dist:
-                        if low == high:
-                            parPart.append((constant, low, high))
+                                print("constant is not constant")
+                                raise ValueError
                         else:
-                            print("constant is not constant")
+                            print("not a recognized distribution")
                             raise ValueError
-                    else:
-                        print("not a recognized distribution")
-                        raise ValueError
-                par_dict[tbi] = parPart
-            else:
-                # demography lists
-                time, event, pop, Ne, growth = line.split()
-                demo_dict[int(time)].append(f"{event}_{pop}_{Ne}_{growth}")
+                    par_dict[tbi] = parPart
+                else:
+                    # demography lists
+                    time, event, pop, Ne, growth = line.split()
+                    demo_dict[int(time)].append(f"{event}_{pop}_{Ne}_{growth}")
     return(cond_list, par_dict, event_dict, demo_dict)

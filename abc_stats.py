@@ -40,7 +40,6 @@ Example
     $ python abc_stats.py --infile --pairs --stats --out_file --split
 
 """
-chunk = 10000
 import sys
 import argparse
 from itertools import combinations
@@ -54,6 +53,12 @@ from sim_stats import filetStats
 from sim_stats import asfsStats
 from sim_stats import jsfsStats
 from sim_stats import afibsStats
+from math import ceil
+from tqdm import tqdm
+from timeit import default_timer as timer
+# set globals
+chunk = 100
+chunkopt = True
 
 
 def pair_split(msdict, out_file, pairs):
@@ -79,7 +84,7 @@ def pair_split(msdict, out_file, pairs):
         split2pairs(msdict, out_file, p1, p2)
 
 
-def header_fx(pairs, sfs=False, jsfs=False, afibs=False, filet=False):
+def header_fx(pairs, pops, sfs=False, jsfs=False, afibs=False, filet=False):
     """Create header for outfile.
 
     Parameters
@@ -101,11 +106,11 @@ def header_fx(pairs, sfs=False, jsfs=False, afibs=False, filet=False):
         DESCRIPTION.
 
     """
-    # asfs_default = "afS1 afS2_2"
-    # jsfs_default = "jfS1 jfS2 jfS3 jfS4 jfS5 jfS6 jfS7 " \
-    #                "jfS8 jfS9 jfS10 jfS11 jfS12 jfS13 "   \
-    #                "jfS14 jfS15 jfS16 jfS17 jfS18 jfS19 " \
-    #                "jfS20 jfS21 jfS22 jfS23"
+    asfs_default = "afS1 afS2"
+    jsfs_default = "jfS1 jfS2 jfS3 jfS4 jfS5 jfS6 jfS7 " \
+                    "jfS8 jfS9 jfS10 jfS11 jfS12 jfS13 "   \
+                    "jfS14 jfS15 jfS16 jfS17 jfS18 jfS19 " \
+                    "jfS20 jfS21 jfS22 jfS23"
     filet_default = "pi1 hetVar1 ss1 private1 tajd1 ZnS1 pi2 hetVar2 ss2 "    \
                     "private2 tajd2 ZnS2 Fst snn dxy_mean dxy_min gmin zx "  \
                     "dd1 dd2 ddRank1 ddRank2"
@@ -116,13 +121,12 @@ def header_fx(pairs, sfs=False, jsfs=False, afibs=False, filet=False):
     asfs_header = []
     jsfs_header = []
     filet_header = []
-
     sub_pops = set([int(item) for x in [x.split("-") for x in pairs] for item in x])
 
     if afibs:
-        for p in sub_pops:
-            afibs_header.append("test")
-            #afibs_header.append()
+        for i, p in enumerate(sub_pops):
+            for j in range(1, len(pops[i])):
+                afibs_header.append(f"afL{j}_{p}")
     if sfs:
         for p in sub_pops:
             asfs_header.append(f"afS1_{p} afS2_{p}")
@@ -140,7 +144,7 @@ def header_fx(pairs, sfs=False, jsfs=False, afibs=False, filet=False):
     return " ".join(header)
 
 
-def write_stats_out(ms, outdir, pairs, asfsdict, jsfsdict, afibsdict, filetdict):
+def write_stats_out(ms, outdir, pairs, pops, asfsdict, jsfsdict, afibsdict, filetdict):
     """Write outstats from sim_pops.
 
     Parameters
@@ -167,7 +171,7 @@ def write_stats_out(ms, outdir, pairs, asfsdict, jsfsdict, afibsdict, filetdict)
     """
     dd = [asfsdict, jsfsdict, afibsdict, filetdict]
     s, j, a, f = [True if i else False for i in dd]
-    header = header_fx(pairs, s, j, a, f)
+    header = header_fx(pairs, pops, s, j, a, f)
     # write
     for d in dd:
         if d:
@@ -213,7 +217,7 @@ def calc_sfs(ms, outdir, pairs, sum_stats, nprocs):
     for pos, hap in zip(sum_stats.pos, sum_stats.haparr):
         argslist.append([pos, hap, sum_stats.pops])
 
-    header = header_fx(pairs, sfs=True)
+    header = header_fx(pairs, "", sfs=True)
     out_file = os.path.join(outdir, f"{ms}.sfs")
     if os.path.exists(out_file):
         mode = 'a'
@@ -235,8 +239,12 @@ def calc_sfs(ms, outdir, pairs, sum_stats, nprocs):
             # set pool and map
             pool = multiprocessing.Pool(nprocs)
             chunk_list = [argslist[i:i + nk] for i in range(0, len(argslist), nk)]
+            if chunkopt:
+                chunksize = ceil(len(chunk_list[0])/nprocs)
+            else:
+                chunksize = 1
             for args in chunk_list:
-                sfs_list = pool.map(asfsStats, args)
+                sfs_list = pool.map(asfsStats, args, chunksize=chunksize)
                 out.write(f"{''.join(sfs_list)}")
             pool.close()
 
@@ -262,7 +270,7 @@ def calc_jsfs(ms, outdir, pairs, sum_stats, nprocs):
     for pos, hap in zip(sum_stats.pos, sum_stats.haparr):
         argslist.append([pos, hap, sum_stats.pops, pairs])
 
-    header = header_fx(pairs, jsfs=True)
+    header = header_fx(pairs, "", jsfs=True)
     out_file = os.path.join(outdir, f"{ms}.jsfs")
     if os.path.exists(out_file):
         mode = 'a'
@@ -284,8 +292,12 @@ def calc_jsfs(ms, outdir, pairs, sum_stats, nprocs):
             # set pool and map
             pool = multiprocessing.Pool(nprocs)
             chunk_list = [argslist[i:i + nk] for i in range(0, len(argslist), nk)]
+            if chunkopt:
+                chunksize = ceil(len(chunk_list[0])/nprocs)
+            else:
+                chunksize = 1
             for args in chunk_list:
-                jsfs_list = pool.map(jsfsStats, args)
+                jsfs_list = pool.map(jsfsStats, args, chunksize=chunksize)
                 out.write(f"{''.join(jsfs_list)}")
             pool.close()
 
@@ -311,7 +323,7 @@ def calc_afibs(ms, outdir, pairs, sum_stats, basepairs, nprocs):
     for pos, hap in zip(sum_stats.pos, sum_stats.haparr):
         argslist.append([pos, hap, sum_stats.pops, basepairs])
 
-    header = header_fx(pairs, afibs=True)
+    header = header_fx(pairs, sum_stats.pops, afibs=True)
     out_file = os.path.join(outdir, f"{ms}.afibs")
     if os.path.exists(out_file):
         mode = 'a'
@@ -333,8 +345,12 @@ def calc_afibs(ms, outdir, pairs, sum_stats, basepairs, nprocs):
             # set pool and map
             pool = multiprocessing.Pool(nprocs)
             chunk_list = [argslist[i:i + nk] for i in range(0, len(argslist), nk)]
+            if chunkopt:
+                chunksize = ceil(len(chunk_list[0])/nprocs)
+            else:
+                chunksize = 1
             for args in chunk_list:
-                afibs_list = pool.map(afibsStats, args)
+                afibs_list = pool.map(afibsStats, args, chunksize=chunksize)
                 out.write(f"{''.join(afibs_list)}")
             pool.close()
 
@@ -366,7 +382,7 @@ def calc_filet(ms, outdir, pairs, sum_stats, block, filet_path, nprocs, window):
     for pos, hap in zip(sum_stats.pos, sum_stats.haparr):
         argslist.append([pos, hap, sum_stats.pops, block, filet_path, window])
 
-    filet_header = header_fx(pairs, filet=True)
+    filet_header = header_fx(pairs, "", filet=True)
     out_file = os.path.join(outdir, f"{ms}.filet")
     if os.path.exists(out_file):
         mode = 'a'
@@ -389,8 +405,12 @@ def calc_filet(ms, outdir, pairs, sum_stats, block, filet_path, nprocs, window):
             # set pool and map
             pool = multiprocessing.Pool(nprocs)
             chunk_list = [argslist[i:i + nk] for i in range(0, len(argslist), nk)]
-            for args in chunk_list:
-                filet_list = pool.map(filetStats, args)
+            if chunkopt:
+                chunksize = ceil(len(chunk_list[0])/nprocs)
+            else:
+                chunksize = 1
+            for args in tqdm(chunk_list):
+                filet_list = pool.map(filetStats, args, chunksize=chunksize)
                 out.write(f"{''.join(filet_list)}")
             pool.close()
 
@@ -575,17 +595,7 @@ def calc_simstats(ms, outdir, msdict, pairs, stats, filetpath, nprocs, window):
     pops = [popconfig[i] for i in sub_pops]
     sum_stats = SumStats(hap_arrT, pos_list, pops)
 
-    if "dir" in stats:
-        calcStats_sim(infile,
-                      outdir,
-                      stats,
-                      pairs,
-                      sum_stats,
-                      basepairs,
-                      filetpath,
-                      nprocs,
-                      window)
-    else:
+    if "pop" in stats:
         asfs, jsfs, afibs, filet = calcStats_pop(stats,
                                                  pairs,
                                                  sum_stats,
@@ -596,10 +606,21 @@ def calc_simstats(ms, outdir, msdict, pairs, stats, filetpath, nprocs, window):
         write_stats_out(infile,
                         outdir,
                         pairs,
+                        sum_stats.pops,
                         asfs,
                         jsfs,
                         afibs,
                         filet)
+    else:
+        calcStats_sim(infile,
+                      outdir,
+                      stats,
+                      pairs,
+                      sum_stats,
+                      basepairs,
+                      filetpath,
+                      nprocs,
+                      window)
 
 
 def calc_observedstats():
@@ -678,7 +699,7 @@ def parse_args(args_in):
     parser_a.add_argument("--pairs", nargs='+', default="all",
                           help="list of pairs separate by hyphen, 0 indexed")
     parser_a.add_argument("--stats", nargs='+', default="filet",
-                          choices=["dir", "sfs", "jsfs", "filet", "afibs"],
+                          choices=["pop", "sfs", "jsfs", "filet", "afibs"],
                           help="which stats to calculate")
     parser_a.add_argument("--nprocs", type=int, default=1, help="try to run"
                           " with parallel. If > 1 will parallel on current machine"
@@ -686,7 +707,9 @@ def parse_args(args_in):
     parser_a.add_argument('--filet_path', type=str, default="current_dir",
                           help="path to FILET dir w/ programs")
     parser_a.add_argument('--window', type=int, default=0,
-                          help="window size for FILET calculations")
+                          help="window size for FILET calculations. If not given"
+                          " defaults to contig size if smaller than 100kb, else"
+                          " windows of 100kb.")
 
     # calculate stats from a VCF file
     parser_b.set_defaults(mode='obs')
@@ -781,12 +804,16 @@ def main():
             msfiles = [ms_file]
         # for each file
         for ms in msfiles:
+            print(f"reading file ...")
+            start = timer()
             msdict = ms_parse(ms)
+            end = timer()
+            print(f"total time to read: {end - start}")
             if split:
                 pair_split(msdict, out_dir, npairs)
             else:
-                # from timeit import default_timer as timer
-                # start = timer()
+                print(f"starting stats ...")
+                start = timer()
                 calc_simstats(ms,
                               out_dir,
                               msdict,
@@ -795,8 +822,8 @@ def main():
                               filet_path,
                               processors,
                               window)
-                # end = timer()
-                # print(end - start)
+                end = timer()
+                print(f"total time for stats: {end - start}")
     elif argsDict["mode"] == "obs":
         calc_observedstats()
 

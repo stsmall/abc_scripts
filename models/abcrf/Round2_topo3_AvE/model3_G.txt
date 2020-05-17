@@ -2,15 +2,16 @@
 # es time p1 p2 1-admx
 # tm time p1 p2 admx
 # ea time p1 p2 p1 admx
-tbi0 tm 16 rUintL 50000 tbi1 rUflt 0.1 0.9
-tbi1 ej 12 rUintL 350000 1500000
-tbi2 tm 56 rUintL 50000 tbi3 rUflt 0.1 0.9
-tbi3 ej 45 rUintL 250000 700000
-tbi4 tm 32 rUintL 500000 tbi5 rUflt 0.1 0.9
-tbi5 ej 35 rUintL 600001 1800000
-tbi6 ej 25 rUintL 2500000 4250000
-tbi7 ej 56 rUintL 4500000 6500000
+tbi0 tm 54 rUintL 50000 tbi1 rUflt 0.1 0.9
+tbi1 ej 56 rUintL 300000 tbi5
+tbi2 tm 32 rUintL 500000 tbi3 rUflt 0.1 0.9
+tbi3 ej 43 rUintL 600000 1100000
+tbi4 tm 12 rUintL 650000 tbi5 rUflt 0.1 0.9
+tbi5 ej 16 rUintL 650000 1800000
+tbi6 ej 32 rUintL 2500000 4250000
+tbi7 ej 26 rUintL 4500000 6500000
 set tbi0 tbi1
+set tbi1 tbi5
 set tbi2 tbi3
 set tbi4 tbi5
 #moz demography

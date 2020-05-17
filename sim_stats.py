@@ -287,8 +287,13 @@ class SumStats:
                 afibs_list.append(afibs[i])
         return afibs_list
 
-    def afibs(self, basepairs, fold=True):
+    def afibs(self, basepairs, fold=False):
         """Allele Frequency spectrum of ibs lengths.
+
+        For each individual within a population calculate up/down distance to
+        nearest SNP for each frequency class of alleles. Average among individuals
+        within a population and return a vector of length pop-2 (no fixed classes)
+        of sizes for each freq class.
 
         Parameters
         ----------
@@ -320,7 +325,7 @@ class SumStats:
             afibs_dict[rep] = " ".join(map(str, [i for t in afibsmean for i in t]))
         return afibs_dict
 
-    def filetStats(self, block, filet_path, window):
+    def filetStats(self, basepairs, filet_path, block):
         """Calculate stats using FILET.
 
         Parameters
@@ -338,6 +343,11 @@ class SumStats:
             DESCRIPTION.
 
         """
+        if basepairs > 100000:
+            block = 100000
+        if block == 0:
+            block = basepairs
+
         keep_stats = np.array([True, True, True, True, False, True, False, False,
                                True, True, True, True, True, False, True, False,
                                False, True, True, True, True, True, True, True,
@@ -354,35 +364,70 @@ class SumStats:
             for rep, hap in enumerate(self.haparr):
                 if type(hap) is list:
                     for sub_rep in list(zip(self.pos[rep], hap)):
-                        rep_dict[rep].append(loci_r)
-                        loci_r += 1
-                        #
-                        pos, gtarr = sub_rep
+                        posr, gtarr = sub_rep
                         gt = allel.HaplotypeArray(gtarr)
                         gtpops = gt.take(pop1+pop2, axis=1)
                         acpops = gtpops.count_alleles()
                         segpops = acpops.is_segregating()
                         gtseg = gtpops.compress(segpops)
-                        posit = pos[segpops] / block
+                        posit = posr[segpops] / block
+                        if basepairs > block:
+                            start = 0
+                            step = block
+                            end = start + step
+                            while end < basepairs:
+                                rep_dict[rep].append(loci_r)
+                                loci_r += 1
+                                s_ix = bisect.bisect_left(posit, start)
+                                e_ix = bisect.bisect_right(posit, end) - 1
+                                posit_block = posit[s_ix:e_ix] / basepairs
+                                gtseg_block = gtseg[s_ix:e_ix]
+                                seg = gtseg_block.shape[0]
+                                fakems_haps.append(f"\n//\nsegsites: {seg}\npositions: {' '.join(map(str, posit_block))}\n")
+                                for geno in gtseg_block.transpose():
+                                    fakems_haps.append(f"{''.join(map(str, geno))}\n")
+                                start += step
+                                end += step
+                        else:
+                            rep_dict[rep].append(loci_r)
+                            loci_r += 1
+                            posit = posit / block
+                            seg = np.count_nonzero(segpops)
+                            fakems_haps.append(f"\n//\nsegsites: {seg}\npositions: {' '.join(map(str, posit))}\n")
+                            for geno in gtseg.transpose():
+                                fakems_haps.append(f"{''.join(map(str, geno))}\n")
+                else:
+                    if basepairs > block:
+                        start = 0
+                        step = block
+                        end = start + step
+                        while end < basepairs:
+                            rep_dict[rep].append(loci_r)
+                            loci_r += 1
+                            s_ix = bisect.bisect_left(posit, start)
+                            e_ix = bisect.bisect_right(posit, end) - 1
+                            posit_block = posit[s_ix:e_ix] / basepairs
+                            gtseg_block = gtseg[s_ix:e_ix]
+                            seg = gtseg_block.shape[0]
+                            fakems_haps.append(f"\n//\nsegsites: {seg}\npositions: {' '.join(map(str, posit_block))}\n")
+                            for geno in gtseg_block.transpose():
+                                fakems_haps.append(f"{''.join(map(str, geno))}\n")
+                            start += step
+                            end += step
+                    else:
+                        rep_dict[rep].append(loci_r)
+                        loci_r += 1
+                        gt = allel.HaplotypeArray(hap)
+                        posr = self.pos[rep][0]
+                        gtpops = gt.take(pop1+pop2, axis=1)
+                        acpops = gtpops.count_alleles()
+                        segpops = acpops.is_segregating()
+                        gtseg = gtpops.compress(segpops)
+                        posit = posr[segpops] / block
                         seg = np.count_nonzero(segpops)
                         fakems_haps.append(f"\n//\nsegsites: {seg}\npositions: {' '.join(map(str, posit))}\n")
                         for geno in gtseg.transpose():
                             fakems_haps.append(f"{''.join(map(str, geno))}\n")
-                else:
-                    rep_dict[rep].append(loci_r)
-                    loci_r += 1
-                    #
-                    gt = allel.HaplotypeArray(hap)
-                    pos = self.pos[rep][0]
-                    gtpops = gt.take(pop1+pop2, axis=1)
-                    acpops = gtpops.count_alleles()
-                    segpops = acpops.is_segregating()
-                    gtseg = gtpops.compress(segpops)
-                    posit = pos[segpops] / block
-                    seg = np.count_nonzero(segpops)
-                    fakems_haps.append(f"\n//\nsegsites: {seg}\npositions: {' '.join(map(str, posit))}\n")
-                    for geno in gtseg.transpose():
-                        fakems_haps.append(f"{''.join(map(str, geno))}\n")
             fakems_head = f"ms {n1+n2} {loci_r} -t tbs -r tbs {block} -I 2 {n1} {n2}\n1234\n"
             fakems = "".join(fakems_haps)
             msinput = fakems_head + fakems
@@ -425,8 +470,14 @@ class SumStats:
 
         """
         # args in
-        pop1, pop2, block, filet_path, window = args
-        #stats and norm
+        pop1, pop2, basepairs, filet_path, block = args
+
+        if basepairs > 100000:
+            block = 100000
+        if block == 0:
+            block = basepairs
+
+       #stats and norm
         keep_stats = np.array([True, True, True, True, False, True, False, False,
                                True, True, True, True, True, False, True, False,
                                False, True, True, True, True, True, True, True,
@@ -443,35 +494,70 @@ class SumStats:
         for rep, hap in enumerate(self.haparr):
             if type(hap) is list:
                 for sub_rep in list(zip(self.pos[rep], hap)):
-                    rep_dict[rep].append(loci_r)
-                    loci_r += 1
-                    #
-                    pos, gtarr = sub_rep
+                    posr, gtarr = sub_rep
                     gt = allel.HaplotypeArray(gtarr)
                     gtpops = gt.take(pop1+pop2, axis=1)
                     acpops = gtpops.count_alleles()
                     segpops = acpops.is_segregating()
                     gtseg = gtpops.compress(segpops)
-                    posit = pos[segpops] / block
+                    posit = posr[segpops] / block
+                    if basepairs > block:
+                        start = 0
+                        step = block
+                        end = start + step
+                        while end < basepairs:
+                            rep_dict[rep].append(loci_r)
+                            loci_r += 1
+                            s_ix = bisect.bisect_left(posit, start)
+                            e_ix = bisect.bisect_right(posit, end) - 1
+                            posit_block = posit[s_ix:e_ix] / basepairs
+                            gtseg_block = gtseg[s_ix:e_ix]
+                            seg = gtseg_block.shape[0]
+                            fakems_haps.append(f"\n//\nsegsites: {seg}\npositions: {' '.join(map(str, posit_block))}\n")
+                            for geno in gtseg_block.transpose():
+                                fakems_haps.append(f"{''.join(map(str, geno))}\n")
+                            start += step
+                            end += step
+                    else:
+                        rep_dict[rep].append(loci_r)
+                        loci_r += 1
+                        posit = posit / block
+                        seg = np.count_nonzero(segpops)
+                        fakems_haps.append(f"\n//\nsegsites: {seg}\npositions: {' '.join(map(str, posit))}\n")
+                        for geno in gtseg.transpose():
+                            fakems_haps.append(f"{''.join(map(str, geno))}\n")
+            else:
+                if basepairs > block:
+                    start = 0
+                    step = block
+                    end = start + step
+                    while end < basepairs:
+                        rep_dict[rep].append(loci_r)
+                        loci_r += 1
+                        s_ix = bisect.bisect_left(posit, start)
+                        e_ix = bisect.bisect_right(posit, end) - 1
+                        posit_block = posit[s_ix:e_ix] / basepairs
+                        gtseg_block = gtseg[s_ix:e_ix]
+                        seg = gtseg_block.shape[0]
+                        fakems_haps.append(f"\n//\nsegsites: {seg}\npositions: {' '.join(map(str, posit_block))}\n")
+                        for geno in gtseg_block.transpose():
+                            fakems_haps.append(f"{''.join(map(str, geno))}\n")
+                        start += step
+                        end += step
+                else:
+                    rep_dict[rep].append(loci_r)
+                    loci_r += 1
+                    gt = allel.HaplotypeArray(hap)
+                    posr = self.pos[rep][0]
+                    gtpops = gt.take(pop1+pop2, axis=1)
+                    acpops = gtpops.count_alleles()
+                    segpops = acpops.is_segregating()
+                    gtseg = gtpops.compress(segpops)
+                    posit = posr[segpops] / block
                     seg = np.count_nonzero(segpops)
                     fakems_haps.append(f"\n//\nsegsites: {seg}\npositions: {' '.join(map(str, posit))}\n")
                     for geno in gtseg.transpose():
                         fakems_haps.append(f"{''.join(map(str, geno))}\n")
-            else:
-                rep_dict[rep].append(loci_r)
-                loci_r += 1
-                #
-                gt = allel.HaplotypeArray(hap)
-                pos = self.pos[rep][0]
-                gtpops = gt.take(pop1+pop2, axis=1)
-                acpops = gtpops.count_alleles()
-                segpops = acpops.is_segregating()
-                gtseg = gtpops.compress(segpops)
-                posit = pos[segpops] / block
-                seg = np.count_nonzero(segpops)
-                fakems_haps.append(f"\n//\nsegsites: {seg}\npositions: {' '.join(map(str, posit))}\n")
-                for geno in gtseg.transpose():
-                    fakems_haps.append(f"{''.join(map(str, geno))}\n")
         fakems_head = f"ms {n1+n2} {loci_r} -t tbs -r tbs {block} -I 2 {n1} {n2}\n1234\n"
         fakems = "".join(fakems_haps)
         msinput = fakems_head + fakems
@@ -811,6 +897,7 @@ def calc_afibs(gt, pos, pops, basepairs, fold):
         DESCRIPTION.
 
     """
+    subsample = 'all'
     afibs = {}
     for i, pop in enumerate(pops):
         afibs_gtlist = []
@@ -822,7 +909,11 @@ def calc_afibs(gt, pos, pops, basepairs, fold):
         # ac = gtseg.count_alleles()
         poslist = pos[seg]
         freqlist = np.sum(gtseg, axis=1)
-        for ind in range(len(pop)):
+        if subsample == 'all':
+            inds_list = range(len(pop))
+        else:
+            inds_list = np.random.choice(len(pop), subsample, replace=False)
+        for ind in inds_list:
             indpos = poslist[gtseg[:, ind] > 0]
             indpos = np.insert(indpos, 0, 0)
             indpos = np.insert(indpos, len(indpos), basepairs)
@@ -855,8 +946,12 @@ def calc_afibs(gt, pos, pops, basepairs, fold):
     return afibs_list
 
 
-def afibsStats(args, fold=True):
+def afibsStats(args, fold=False):
     """
+    For each individual within a population calculate up/down distance to
+    nearest SNP for each frequency class of alleles. Average among individuals
+    within a population and return a vector of length pop-2 (no fixed classes)
+    of sizes for each freq class.
 
     Parameters
     ----------
@@ -892,7 +987,6 @@ def afibsStats(args, fold=True):
         afibsmean = calc_afibs(gt, pos, pops, basepairs, fold)
     afibs = " ".join(map(str, [i for t in afibsmean for i in t]))
     return f"{afibs}\n"
-
 
 
 def filetStats(args):

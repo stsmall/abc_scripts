@@ -303,7 +303,7 @@ def org_params(par_dict, demo_dict, eventkey_dict, cond_list):
             if params_dict[lt][0] > params_dict[gt][0]:
                 raise ValueError("param set conditions not met {lt} {gt}")
         except ValueError:
-            logging.exception(f"%s %s > %s %s") %(lt, str(params_dict[lt][0]), gt, str(params_dict[gt][0]))
+            # logging.exception(f"%s %s > %s %s") %(lt, str(params_dict[lt][0]), gt, str(params_dict[gt][0]))
             params_dict[lt][0] = params_dict[gt][0] - 1
 
     time_dict = defaultdict(lambda: defaultdict(list))

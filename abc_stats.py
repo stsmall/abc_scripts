@@ -46,6 +46,12 @@ from itertools import combinations
 import multiprocessing
 import glob
 import os
+import allel
+import numpy as np
+from math import ceil
+from tqdm import tqdm
+from timeit import default_timer as timer
+
 from sim_parse import ms_parse
 from sim_parse import split2pairs
 from sim_stats import SumStats
@@ -53,9 +59,9 @@ from sim_stats import filetStats
 from sim_stats import asfsStats
 from sim_stats import jsfsStats
 from sim_stats import afibsStats
-from math import ceil
-from tqdm import tqdm
-from timeit import default_timer as timer
+from obs_stats import readMaskDataForScan
+from obs_stats import readSampleToPopFile
+
 # set globals
 chunk = 100
 chunkopt = True
@@ -623,46 +629,58 @@ def calc_simstats(ms, outdir, msdict, pairs, stats, filetpath, nprocs, window):
                       window)
 
 
-def calc_observedstats():
+def calc_observedstats(vcfFile, chr_arm, chrlen, outFile, maskFile, anc_fasta,
+                       window, unmskfrac, pairs, sampleFile, stats, filet_path):
     """Calculate Obs stats.
+
+    vcfFile
+    pops
+    chr_arm
+    genome_file
+    gff3_file
+    meta_file
+    stats
 
     Returns
     -------
     None.
 
     """
-    pass
-#     """Calculate observed statistics.
+    breakpoint()
+    calls = allel.read_vcf(vcfFile)
+    chroms = calls["variants/CHROM"]
+    positions = np.extract(chroms == chr_arm, calls["variants/POS"])
+    #
+    samples = calls["samples"]
+    sample_pop = readSampleToPopFile(sampleFile)
+    sample_ix = [i for i in range(len(samples)) if sample_pop.get(samples[i], "popNotFound!") == "targetPop"]
+    #
+    rawgenos = np.take(vcfFile["calldata/GT"], [i for i in range(len(chroms)) if chroms[i] == chr_arm], axis=0)
+    genos = allel.GenotypeArray(rawgenos).subset(sel1=sample_ix)
+    #
+    if maskFile:
+        unmasked = readMaskDataForScan(maskFile, chr_arm)
+        assert len(unmasked) == chrlen
+    #
+    alleleCounts = genos.count_alleles()
+    snps = [i for i in range(len(positions)) if unmasked[positions[i]-1]]
+    genos = allel.GenotypeArray(genos.subset(sel0=snps))
+    positions = [positions[i] for i in snps]
+    alleleCounts = allel.AlleleCountsArray([[alleleCounts[i][0], max(alleleCounts[i][1:])] for i in snps])
 
-#     Parameters
-#     ----------
-#     vcf : TYPE
-#         DESCRIPTION.
-#     gvcf : TYPE
-#         DESCRIPTION.
-
-#     Returns
-#     -------
-#     None.
-
-#     """
-#     from obs_stats import *
-#     import normalizePgStats as norm_stats
-
-#     # sfs, jsfs, afibs
-#     # TODO: use functions from diploshic for importing VCF to allel
-#     # use sim_stats functions once in allel format
-
-#     # FILET
-#     # this could likely be done with SnakeMake since it is just passing files around
-#     for arm in chrom:
-#         windows = make_coords(chrom, chr_len, start, end, window_size, step)
-#     vcfs, masks = build_mask(pairs, sample_names, vcf, gvcf, repeat_gff, ref_fa, prcnt_miss, qual)
-#     fastas = vcf_to_fasta(vcf_path, vcfs, mask_path, masks)
-#     for pair in fastas:
-#         p1, p2, arm = pair.split("-")
-#         f"pgStatsBedSubpop_forML {p1}.{p1}-{p2}.{arm}.masked.fasta {p2}.{p1}-{p2}.{arm}.masked.fasta"
-#         f"{anc_fa} windows.{arm}.txt {frac_miss} | norm_stats {window_size}"
+    # start stats
+    if "sfs" in stats:
+        # asfs
+        pass
+    if "jsfs" in stats:
+        # jsfs
+        pass
+    if "afibs" in stats:
+        pass
+        # afibs
+    if "filet" in stats:
+        pass
+        # filet
 
 
 def parse_args(args_in):
@@ -714,8 +732,8 @@ def parse_args(args_in):
     # calculate stats from a VCF file
     parser_b.set_defaults(mode='obs')
     # parser_b._positionals.title = "required arguments"
-    parser_b.add_argument('chr_arm_vcf', help="VCF format file containing data"
-                          "for our chromosome arm (other arms will be ignored)")
+    parser_b.add_argument('vcfFileIn', help="VCF format file containing data"
+                          "for one chromosome arm (other arms will be ignored)")
     parser_b.add_argument('chr_arm', help="Exact name of the chromosome arm for"
                           "which feature vectors will be calculated")
     parser_b.add_argument('chr_len', type=int, help="Length of the chromosome arm")
@@ -723,6 +741,8 @@ def parse_args(args_in):
                           "will be written")
     parser_b.add_argument("--pairs", nargs='+',
                           help="list of pairs separate by hyphen, 0 indexed")
+    parser_b.add_argument('pops_file', help="individual names to pops as found in"
+                          "VCF file")
     parser_b.add_argument("--stats", nargs='+', default="filet",
                           choices=["sfs", "jsfs", "filet", "afibs", "all"],
                           help="which stats to calculate")
@@ -740,12 +760,6 @@ def parse_args(args_in):
     parser_b.add_argument('--ancestral_fasta', default=None,
                           help="Path to a fasta-formatted file that contains"
                           " inferred ancestral states")
-    parser_b.add_argument('--segment_start', default=None,
-                          help="Left boundary of region in which feature vectors"
-                          " are calculated (whole arm if omitted)")
-    parser_b.add_argument('--segment_end', default=None,
-                          help="Right boundary of region in which feature vectors"
-                          "are calculated (whole arm if omitted)")
     parser_b.add_argument('--filet_path', type=str, default="current_dir",
                           help="path to FILET dir w/ programs")
     args = parser.parse_args(args_in)
@@ -774,15 +788,13 @@ def main():
         chrom = argsDict["chr_arm"]
         chrom_len = argsDict["chr_len"]
         out_file = argsDict["out_file"]
+        mask_file = argsDict["mask_file"]
+        anc_fasta = argsDict["ancestral_fasta"]
         win_size = argsDict["win_size"]
         win_slide = argsDict["win_slide"]
-        mask_file = argsDict["mask_file"]
         unmasked_frac = argsDict["unmasked_frac_cutoff"]
-        unmasked_geno = argsDict["unmasked_geno_cutoff"]
-        anc_fasta = argsDict["ancestral_fasta"]
-        seg_start = argsDict["segment_start"]
-        seg_end = argsDict["segment_end"]
         pairs = argsDict["pairs"]
+        pops = argsDict["pops_file"]
         stats = argsDict["stats"]
         filet_path = argsDict["filet_path"]
     # =========================================================================
@@ -825,7 +837,9 @@ def main():
                 end = timer()
                 print(f"total time for stats: {end - start}")
     elif argsDict["mode"] == "obs":
-        calc_observedstats()
+        calc_observedstats(vcf, chrom, chrom_len, out_file, mask_file, anc_fasta,
+                           [win_size, win_slide], unmasked_frac, pairs, pops,
+                           stats, filet_path)
 
 
 if __name__ == "__main__":

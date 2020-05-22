@@ -630,7 +630,7 @@ def calc_simstats(ms, outdir, msdict, pairs, stats, filetpath, nprocs, window):
 
 
 def calc_observedstats(vcfFile, chr_arm, chrlen, outFile, maskFile, anc_fasta,
-                       window, unmskfrac, pairs, sampleFile, stats, filet_path):
+                       window, unmskfrac, pops, sampleFile, stats, filet_path):
     """Calculate Obs stats.
 
     vcfFile
@@ -653,7 +653,9 @@ def calc_observedstats(vcfFile, chr_arm, chrlen, outFile, maskFile, anc_fasta,
     #
     samples = calls["samples"]
     sample_pop = readSampleToPopFile(sampleFile)
-    sample_ix = [i for i in range(len(samples)) if sample_pop.get(samples[i], "popNotFound!") == "targetPop"]
+    sample_ix = []
+    for pop in pops:
+        sample_ix.append([i for i in range(len(samples)) if sample_pop.get(samples[i], "popNotFound!") == pop])
     #
     rawgenos = np.take(vcfFile["calldata/GT"], [i for i in range(len(chroms)) if chroms[i] == chr_arm], axis=0)
     genos = allel.GenotypeArray(rawgenos).subset(sel1=sample_ix)
@@ -740,7 +742,7 @@ def parse_args(args_in):
     parser_b.add_argument('out_file', help="path to file where feature vectors "
                           "will be written")
     parser_b.add_argument("--pairs", nargs='+',
-                          help="list of pairs separate by hyphen, 0 indexed")
+                          help="list of pops")
     parser_b.add_argument('pops_file', help="individual names to pops as found in"
                           "VCF file")
     parser_b.add_argument("--stats", nargs='+', default="filet",

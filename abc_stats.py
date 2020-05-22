@@ -784,7 +784,7 @@ def main():
         filet_path = os.path.abspath(argsDict["filet_path"])
         window = argsDict["window"]
     else:
-        vcf = argsDict["chr_arm_vcf"]
+        vcf = argsDict["vcfFileIn"]
         chrom = argsDict["chr_arm"]
         chrom_len = argsDict["chr_len"]
         out_file = argsDict["out_file"]

@@ -39,8 +39,10 @@ def readMaskDataForScan(maskFileName, chrArm):
                     break
             else:
                 if readingMasks:
-                    for char in line.strip().upper():
+                    for char in line.strip():
                         if char == 'N':
+                            isAccessible.append(False)
+                        elif char.islower():
                             isAccessible.append(False)
                         else:
                             isAccessible.append(True)

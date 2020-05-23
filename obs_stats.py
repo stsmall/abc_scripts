@@ -5,9 +5,12 @@
 """
 
 import allel
+from subprocess import run, PIPE
 import numpy as np
+import os
 import gzip
 import bisect
+from itertools import combinations
 
 
 def readSampleToPopFile(sampleToPopFileName):
@@ -44,7 +47,39 @@ def readMaskDataForScan(maskFileName, chrArm):
     return isAccessible
 
 
-def asfsStats(args, fold=False, rand=True, randn=100000):
+def makeAncArray(calls, pos, chr_arm, anc_fasta):
+    ref_allele = calls['variants/REF'].subset(sel0=pos)
+    anc_list = []
+    fa = []
+    readingMasks = False
+    if anc_fasta.endswith(".gz"):
+        fopen = gzip.open
+    else:
+        fopen = open
+    with fopen(anc_fasta, 'rt') as anc:
+        for line in anc:
+            if line.startswith(">"):
+                currChr = line[1:].strip()
+                if currChr == chr_arm:
+                    readingMasks = True
+                elif readingMasks:
+                    break
+            else:
+                if readingMasks:
+                    fa.append(line.strip())
+    seq = "".join(fa)
+    for i, p in enumerate(pos):
+        char = seq[p]
+        if char == "N":
+            print(f"Masked ancestral allele at base: {p}")
+        elif char == ref_allele[i]:
+            anc_list.append(0)
+        else:
+            anc_list.append(1)
+    return np.array(anc_list)
+
+
+def asfsObsStats(args, fold=False, rand=True, randn=100000):
     """
 
     Parameters
@@ -72,9 +107,10 @@ def asfsStats(args, fold=False, rand=True, randn=100000):
     aSFS12 = []
     aSFS = []
     for pop in pops:
-        gtpop = gt.take(pop, axis=1)
+        # gtpop = gt.take(pop, axis=1)
+        gtpop = gt.subset(sel1=pop)
         miss_count = gtpop.count_missing(axis=1)
-        miss_arr = miss_count > 0
+        miss_arr = miss_count == 0
         gtpop = gtpop.compress(miss_arr, axis=0)
         acpop = gtpop.count_alleles()
         seg = acpop.is_segregating()
@@ -100,7 +136,7 @@ def asfsStats(args, fold=False, rand=True, randn=100000):
         except ValueError:
             # no segregating snps
             tots = 1
-            sfsp = [0]*len(pop)
+            sfsp = [0]*len(pop)*2
         try:
             aSFS12.append(sfsp[1]/tots)
         except IndexError:
@@ -158,7 +194,7 @@ def summarizejsfs(fs):
     return props
 
 
-def jsfsStats(args, fold=False, rand=True, randn=100000):
+def jsfsObsStats(args, fold=False, rand=True, randn=100000):
     """
 
     Parameters
@@ -184,15 +220,12 @@ def jsfsStats(args, fold=False, rand=True, randn=100000):
         DESCRIPTION.
 
     """
-    pos, gt, pops, pairs = args
+    pos, gt, pops, = args
     jsfs_list = []
-    for pair in pairs:
-        i, j = pair.split("-")
-        p1 = pops[int(i)]
-        p2 = pops[int(j)]
+    for p1, p2 in combinations(pops, 2):
         gtpops = gt.take(p1+p2, axis=1)
         miss_count = gtpops.count_missing(axis=1)
-        miss_arr = miss_count > 0
+        miss_arr = miss_count == 0
         gtpops = gtpops.compress(miss_arr, axis=0)
         acpops = gtpops.count_alleles()
         segpops = acpops.is_segregating()
@@ -212,27 +245,25 @@ def jsfsStats(args, fold=False, rand=True, randn=100000):
         gtpop2 = gtr.take(range(len(p1), gtr.shape[1]), axis=1)
         ac1 = gtpop1.count_alleles()
         ac2 = gtpop2.count_alleles()
-        #jsfs = allel.joint_sfs(ac1[:, 1], ac2[:, 1])
+        # jsfs = allel.joint_sfs(ac1[:, 1], ac2[:, 1])
         # jsfs
         if fold:
             # pad for allel as well
-            popsizeA, popsizeB = len(p1)/2, len(p2)/2
-            fs = np.zeros((popsizeA + 1, popsizeB + 1), dtype=int)
-            jsfs = allel.joint_sfs_folded(ac1, ac2)
-            fs[:jsfs.shape[0], :jsfs.shape[1]] = jsfs
-        else:
-            # pad for allel as well
             popsizeA, popsizeB = len(p1), len(p2)
-            fs = np.zeros((popsizeA + 1, popsizeB + 1), dtype=int)
+            jsfs = allel.joint_sfs_folded(ac1, ac2)
+            fs = np.resize(jsfs, (popsizeA+1, popsizeB+1))
+        else:
+            # this is gt array so count is in diploid not haps
+            popsizeA, popsizeB = len(p1)*2, len(p2)*2
             jsfs = allel.joint_sfs(ac1[:, 1], ac2[:, 1])
-            fs[:jsfs.shape[0], :jsfs.shape[1]] = jsfs
+            fs = np.resize(jsfs, (popsizeA+1, popsizeB+1))
         props = summarizejsfs(fs)
         jsfs_list.append(props)
     jsfs = " ".join(map(str, np.concatenate(jsfs_list).ravel()))
     return f"{jsfs}\n"
 
 
-def calc_afibs(gt, pos, pops, basepairs, fold):
+def calc_afibs(gt, pos, pops, window, chrlen, fold):
     """Calculate afibs.
 
     Parameters
@@ -252,50 +283,66 @@ def calc_afibs(gt, pos, pops, basepairs, fold):
         DESCRIPTION.
 
     """
+    block, step = window
+    if step == 0:
+        step = block
     subsample = 'all'
     afibs = {}
     for i, pop in enumerate(pops):
-        afibs_gtlist = []
-        ibsarray = np.zeros((len(pop), len(pop)-1))
-        gtpop = gt.take(pop, axis=1)
+        haps = len(pop)*2
+        ibsarray = np.zeros((haps, haps-1))
+        gtpop = gt.subset(sel1=pop)
         miss_count = gtpop.count_missing(axis=1)
-        miss_arr = miss_count > 0
+        miss_arr = miss_count == 0
         gtpop = gtpop.compress(miss_arr, axis=0)
         pos = pos[miss_arr]
         acpop = gtpop.count_alleles()
         seg = acpop.is_segregating()
         gtseg = gtpop.compress(seg)
+        gthap = gtseg.to_haplotypes()
         poslist = pos[seg]
-        freqlist = np.sum(gtseg, axis=1)
+        freqlist = np.sum(gthap, axis=1)
         if subsample == 'all':
-            inds_list = range(len(pop))
+            inds_list = range(haps)
         else:
-            inds_list = np.random.choice(len(pop), subsample, replace=False)
+            inds_list = np.random.choice(haps, subsample, replace=False)
         for ind in inds_list:
-            indpos = poslist[gtseg[:, ind] > 0]
+            indpos = poslist[gthap[:, ind] > 0]
             indpos = np.insert(indpos, 0, 0)
-            indpos = np.insert(indpos, len(indpos), basepairs)
-            for freq in range(1, len(pop)):
-                ibs = 0
-                mut_ix = np.where(freqlist == freq)[0]
-                for m in mut_ix:
-                    start = bisect.bisect_left(indpos, poslist[m])
-                    end = bisect.bisect_right(indpos, poslist[m])
-                    ibs += indpos[end] - indpos[start - 1]
+            indpos = np.insert(indpos, len(indpos), chrlen)
+            reps = 0
+            start = 0
+            step = step
+            end = start + step
+            while end < chrlen:
                 try:
-                    ibsarray[ind, freq-1] = (ibs / len(mut_ix))
-                except ZeroDivisionError:
-                    # nothing in that freq class
-                    ibsarray[ind, freq-1] = 0
-            afibs_gtlist.append(np.mean(ibsarray, axis=0))
-        afibs[i] = np.mean(afibs_gtlist, axis=0)
+                    loc = poslist.locate_range(start, end)
+                    for freq in range(1, haps):
+                        ibs = 0
+                        mut_ix = np.where(freqlist[loc] == freq)[0]
+                        if len(mut_ix) > 0:
+                            for m in mut_ix:
+                                ix = bisect.bisect_left(indpos, poslist[m])
+                                ibs += indpos[ix] - indpos[ix - 1]
+                            ibsarray[ind, freq-1] += (ibs / len(mut_ix))
+                            reps += 1
+                        # except ZeroDivisionError:
+                        #     # nothing in that freq class
+                        #     ibsarray[ind, freq-1] += 0
+                except KeyError:
+                    pass
+                start += step
+                end += step
+            ibsarray[ind, :] *= (1/reps)
+        ibsarray[ibsarray == 0] = np.nan
+        afibs[i] = np.nanmean(ibsarray, axis=0)
     # fold and export to list
     afibs_list = []
     if fold:
         for i, pop in enumerate(pops):
             ibs_flip = np.flip(afibs[i], axis=0)
             ibs_fold = (ibs_flip + afibs[i]) / 2
-            haps = int(len(pop)/2)
+            haps = int(len(pop))
             ibs = ibs_fold[0:haps]
             afibs_list.append(ibs)
     else:
@@ -304,7 +351,7 @@ def calc_afibs(gt, pos, pops, basepairs, fold):
     return afibs_list
 
 
-def afibsStats(args, fold=False):
+def afibsObsStats(args, fold=False):
     """
     For each individual within a population calculate up/down distance to
     nearest SNP for each frequency class of alleles. Average among individuals
@@ -330,200 +377,100 @@ def afibsStats(args, fold=False):
         DESCRIPTION.
 
     """
-    pos, gt, pops, basepairs = args
-    afibsmean = calc_afibs(gt, pos, pops, basepairs, fold)
+    pos, gt, pops, window, chrlen = args
+    afibsmean = calc_afibs(gt, pos, pops, window, chrlen, fold)
     afibs = " ".join(map(str, [i for t in afibsmean for i in t]))
     return f"{afibs}\n"
 
+# TODO: filet, add SortedIndex, locate_range()
+def filetObsStats(args, unmasked, anc_arr, unmskfrac, window, filet_path):
+    """
 
-# TODO: filet ... make bed, vcf2fasta, calc stats
+    Parameters
+    ----------
+    pos : TYPE
+        DESCRIPTION.
+    hap : TYPE
+        DESCRIPTION.
+    pops : TYPE
+        DESCRIPTION.
+    basepairs : TYPE
+        DESCRIPTION.
+    filet_path : TYPE
+        DESCRIPTION.
+    block : TYPE
+        DESCRIPTION.
 
-# def vcf_to_fasta(vcf_path, vcf_files, mask_path, mask_files):
-#     """Create fasta from masked and phased VCF.
+    Returns
+    -------
+    filet_list : TYPE
+        DESCRIPTION.
 
-#     Parameters
-#     ----------
-#     vcf : TYPE
-#         DESCRIPTION.
-#     mask_out : TYPE
-#         DESCRIPTION.
-#     fasta_out1 : TYPE
-#         DESCRIPTION.
-#     fasta_out2 : TYPE
-#         DESCRIPTION.
-
-#     Returns
-#     -------
-#     None
-
-#     """
-#     # vcf_list = ['Fun_Par_3R.vcf', 'Fun_Van_3R.vcf']
-#     for vcf in vcf_list:
-#         import phasedVcfsToFastas as vcf2fasta
-#         pop1, pop2, arm = vcf.strip("vcf").split("_")
-#         mask = f"{pop1}-{pop2}.mask.fa"
-#         assert mask in mask_list
-#         vcf2fasta(PATHvcf, PATHmask, f"{pop1}.{pop1}-{pop2}.{arm}.masked.fasta", f"{pop2}.{pop1}-{pop2}.{arm}.masked.fasta")
-#         fasta_files.append(f"{pop1}-{pop2}-{arm}")
-#     return fasta_files
-
-
-# def make_coords(chrom, chrom_len, start, stop, size, step):
-#     """Make windows for FILET.
-
-#     Parameters
-#     ----------
-#     chrom : TYPE
-#         DESCRIPTION.
-#     chrom_len : TYPE
-#         DESCRIPTION.
-#     start : TYPE
-#         DESCRIPTION.
-#     stop : TYPE
-#         DESCRIPTION.
-#     size : TYPE
-#         DESCRIPTION.
-#     step : TYPE
-#         DESCRIPTION.
-
-#     Returns
-#     -------
-#     None.
-
-#     """
-#     if start:
-#         window = f"{chrom}.{size}-{step}.{start}-{stop}.bed"
-#     else:
-#         window = f"{chrom}.{size}-{step}.bed"
-# def filetStats(args):
-#     """
-
-#     Parameters
-#     ----------
-#     pos : TYPE
-#         DESCRIPTION.
-#     hap : TYPE
-#         DESCRIPTION.
-#     pops : TYPE
-#         DESCRIPTION.
-#     basepairs : TYPE
-#         DESCRIPTION.
-#     filet_path : TYPE
-#         DESCRIPTION.
-#     block : TYPE
-#         DESCRIPTION.
-
-#     Returns
-#     -------
-#     filet_list : TYPE
-#         DESCRIPTION.
-
-#     """
-#     pos, hap, pops, basepairs, filet_path, block = args
-
-#     if basepairs > 100000:
-#         block = 100000
-#     if block == 0:
-#         block = basepairs
-
-#     keep_stats = np.array([True, True, True, True, False, True, False, False,
-#                            True, True, True, True, True, False, True, False,
-#                            False, True, True, True, True, True, True, True,
-#                            True, True, True, True, False, False, False])
-#     norm = np.array([block, block**2, block, block, 1, 1, block, block**2,
-#                      block, block, 1, 1, 1, 1, block, block, block, 1, 1, 1, 1, 1])
-#     filet_list = []
-#     for pop1, pop2 in combinations(pops, 2):
-#         fakems_haps = []
-#         n1 = len(pop1)
-#         n2 = len(pop2)
-#         if type(hap) is list:
-#             loci_r = 0
-#             for sub_rep in list(zip(pos, hap)):
-#                 posr, gtarr = sub_rep
-#                 gt = allel.HaplotypeArray(gtarr)
-#                 gtpops = gt.take(pop1+pop2, axis=1)
-#                 acpops = gtpops.count_alleles()
-#                 segpops = acpops.is_segregating()
-#                 gtseg = gtpops.compress(segpops)
-#                 posit = posr[segpops]
-#                 #
-#                 if basepairs > block:
-#                     start = 0
-#                     step = block
-#                     end = start + step
-#                     while end < basepairs:
-#                         loci_r += 1
-#                         s_ix = bisect.bisect_left(posit, start)
-#                         e_ix = bisect.bisect_right(posit, end) - 1
-#                         posit_block = posit[s_ix:e_ix] / basepairs
-#                         gtseg_block = gtseg[s_ix:e_ix]
-#                         seg = gtseg_block.shape[0]
-#                         fakems_haps.append(f"\n//\nsegsites: {seg}\npositions: {' '.join(map(str, posit_block))}\n")
-#                         for geno in gtseg_block.transpose():
-#                             fakems_haps.append(f"{''.join(map(str, geno))}\n")
-#                         start += step
-#                         end += step
-#                 #
-#                 else:
-#                     loci_r = len(sub_rep)
-#                     posit = posit / block
-#                     seg = np.count_nonzero(segpops)
-#                     fakems_haps.append(f"\n//\nsegsites: {seg}\npositions: {' '.join(map(str, posit))}\n")
-#                     for geno in gtseg.transpose():
-#                         fakems_haps.append(f"{''.join(map(str, geno))}\n")
-#         else:
-#             gt = allel.HaplotypeArray(hap)
-#             posr = pos[0]
-#             gtpops = gt.take(pop1+pop2, axis=1)
-#             acpops = gtpops.count_alleles()
-#             segpops = acpops.is_segregating()
-#             gtseg = gtpops.compress(segpops)
-#             posit = posr[segpops]
-#             #
-#             if basepairs > block:
-#                 loci_r = 0
-#                 start = 0
-#                 step = block
-#                 end = start + step
-#                 while end < basepairs:
-#                     loci_r += 1
-#                     s_ix = bisect.bisect_left(posit, start)
-#                     e_ix = bisect.bisect_right(posit, end) - 1
-#                     posit_block = posit[s_ix:e_ix] / basepairs
-#                     gtseg_block = gtseg[s_ix:e_ix]
-#                     seg = gtseg_block.shape[0]
-#                     fakems_haps.append(f"\n//\nsegsites: {seg}\npositions: {' '.join(map(str, posit_block))}\n")
-#                     for geno in gtseg_block.transpose():
-#                         fakems_haps.append(f"{''.join(map(str, geno))}\n")
-#                     start += step
-#                     end += step
-#             #
-#             else:
-#                 loci_r = 1
-#                 posit = posit / block
-#                 seg = np.count_nonzero(segpops)
-#                 fakems_haps.append(f"\n//\nsegsites: {seg}\npositions: {' '.join(map(str, posit))}\n")
-#                 for geno in gtseg.transpose():
-#                     fakems_haps.append(f"{''.join(map(str, geno))}\n")
-#         fakems_head = f"ms {n1+n2} {loci_r} -t tbs -r tbs {block} -I 2 {n1} {n2}\n1234\n"
-#         fakems = "".join(fakems_haps)
-#         msinput = fakems_head + fakems
-#         filet_prog = os.path.join(filet_path, "twoPopnStats_forML")
-#         cmd = [filet_prog, str(n1), str(n2)]
-#         proc = run(cmd, stdout=PIPE, input=msinput, encoding='ascii', check=True)
-#         # collect stats
-#         lstats = proc.stdout.rstrip().split('\n')[1:]
-#         stat_vec = [list(map(float, l.split())) for l in lstats]
-#         if len(stat_vec) > 1:
-#             stat_arr = np.vstack(stat_vec)
-#             stat_arr[np.isinf(stat_arr)] = 'nan'
-#             filetmean = np.nanmean(stat_arr, axis=0)
-#             filet_norm = filetmean[keep_stats] / norm
-#         else:
-#             stat_arr = np.array(stat_vec[0])[keep_stats]
-#             stat_arr[np.isinf(stat_arr)] = 'nan'
-#             filet_norm = stat_arr / norm
-#         filet_list.append(" ".join(map(str, filet_norm)))
-#     return f"{' '.join(filet_list)}\n"
-
+    """
+    pos, gt, pops, chrlen = args
+    block, step = window
+    if block > 100000:
+        block = 100000
+    if step == 0:
+        step = block
+    keep_stats = np.array([True, True, True, True, False, True, False, False,
+                           True, True, True, True, True, False, True, False,
+                           False, True, True, True, True, True, True, True,
+                           True, True, True, True, False, False, False])
+    norm = np.array([block, block**2, block, block, 1, 1, block, block**2,
+                     block, block, 1, 1, 1, 1, block, block, block, 1, 1, 1, 1, 1])
+    filet_list = []
+    for pop1, pop2 in combinations(pops, 2):
+        fakems_haps = []
+        n1 = len(pop1)
+        n2 = len(pop2)
+        gtpops = gt.take(pop1+pop2, axis=1)
+        acpops = gtpops.count_alleles()
+        segpops = acpops.is_segregating()
+        gtseg = gtpops.compress(segpops)
+        posit = pos[segpops]
+        anc = anc_arr[segpops]
+        #
+        loci_r = 0
+        start = 0
+        step = block
+        end = start + step
+        while end < chrlen:
+            loci_r += 1
+            s_ix = bisect.bisect_left(posit, start)
+            e_ix = bisect.bisect_right(posit, end) - 1
+            if (np.count_nonzero(unmasked[s_ix:e_ix]) / block) > unmskfrac:
+                posit_block = posit[s_ix:e_ix]
+                gtseg_block = gtseg.subset(sel0=posit_block)
+                # seg = gtseg_block.shape[0]
+                seg = gtseg_block.n_variants
+                ms_pos = posit_block / (block + end)
+                fakems_haps.append(f"\n//\nsegsites: {seg}\npositions: {' '.join(map(str, ms_pos))}\n")
+                if np.count_nonzeros(anc[s_ix:e_ix]) > 0:
+                    flip_pol = np.where(anc[s_ix:e_ix] > 0)[0]
+                    for geno in gtseg_block.transpose():
+                        for al in flip_pol:
+                            if geno[al] == 1:
+                                geno[al] = 0
+                            else:
+                                geno[al] = 1
+                        fakems_haps.append(f"{''.join(map(str, geno))}\n")
+                else:
+                    for geno in gtseg_block.transpose():
+                        fakems_haps.append(f"{''.join(map(str, geno))}\n")
+            start += step
+            end += step
+        fakems_head = f"ms {n1+n2} {loci_r} -t tbs -r tbs {block} -I 2 {n1} {n2}\n1234\n"
+        fakems = "".join(fakems_haps)
+        msinput = fakems_head + fakems
+        filet_prog = os.path.join(filet_path, "twoPopnStats_forML")
+        cmd = [filet_prog, str(n1), str(n2)]
+        proc = run(cmd, stdout=PIPE, input=msinput, encoding='ascii', check=True)
+        # collect stats
+        lstats = proc.stdout.rstrip().split('\n')[1:]
+        stat_vec = [list(map(float, l.split())) for l in lstats]
+        stat_arr = np.array(stat_vec[0])[keep_stats]
+        stat_arr[np.isinf(stat_arr)] = 'nan'
+        filet_norm = stat_arr / norm
+        filet_list.append(" ".join(map(str, filet_norm)))
+    return f"{' '.join(filet_list)}\n"

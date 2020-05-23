@@ -205,20 +205,17 @@ class SumStats:
                 gtpop2 = gtr.take(range(len(p1), gtr.shape[1]), axis=1)
                 ac1 = gtpop1.count_alleles()
                 ac2 = gtpop2.count_alleles()
-                #jsfs = allel.joint_sfs(ac1[:, 1], ac2[:, 1])
                 # jsfs
                 if fold:
                     # pad for allel as well
                     popsizeA, popsizeB = len(p1)/2, len(p2)/2
-                    fs = np.zeros((popsizeA + 1, popsizeB + 1), dtype=int)
                     jsfs = allel.joint_sfs_folded(ac1, ac2)
-                    fs[:jsfs.shape[0], :jsfs.shape[1]] = jsfs
+                    fs = np.resize(jsfs, (popsizeA+1, popsizeB+1))
                 else:
                     # pad for allel as well
                     popsizeA, popsizeB = len(p1), len(p2)
-                    fs = np.zeros((popsizeA + 1, popsizeB + 1), dtype=int)
                     jsfs = allel.joint_sfs(ac1[:, 1], ac2[:, 1])
-                    fs[:jsfs.shape[0], :jsfs.shape[1]] = jsfs
+                    fs = np.resize(jsfs, (popsizeA+1, popsizeB+1))
                 props = self.summarizejsfs(fs)
                 jsfs_list.append(props)
             jsfs_dict[rep] = " ".join(map(str, np.concatenate(jsfs_list).ravel()))
@@ -246,7 +243,6 @@ class SumStats:
         """
         afibs = {}
         for pix, pop in enumerate(self.pops):
-            afibs_gtlist = []
             ibsarray = np.zeros((len(pop), len(pop)-1))
             gtpop = gt.take(pop, axis=1)
             acpop = gtpop.count_alleles()
@@ -262,17 +258,14 @@ class SumStats:
                 for freq in range(1, len(pop)):
                     ibs = 0
                     mut_ix = np.where(freqlist == freq)[0]
-                    for m in mut_ix:
-                        start = bisect.bisect_left(indpos, poslist[m])
-                        end = bisect.bisect_right(indpos, poslist[m])
-                        ibs += indpos[end] - indpos[start - 1]
-                    try:
+                    if len(mut_ix) > 0:
+                        for m in mut_ix:
+                            start = bisect.bisect_left(indpos, poslist[m])
+                            end = bisect.bisect_right(indpos, poslist[m])
+                            ibs += indpos[end] - indpos[start - 1]
                         ibsarray[ind, freq-1] = (ibs / len(mut_ix))
-                    except ZeroDivisionError:
-                        # nothing in that freq class
-                        ibsarray[ind, freq-1] = 0
-                afibs_gtlist.append(np.mean(ibsarray, axis=0))
-            afibs[pix] = np.mean(afibs_gtlist, axis=0)
+            ibsarray[ibsarray == 0] = np.nan
+            afibs[pix] = np.nanmean(ibsarray, axis=0)
         # fold and export to list
         afibs_list = []
         if fold:
@@ -857,20 +850,17 @@ def jsfsStats(args, fold=False, rand=True, randn=100000):
         gtpop2 = gtr.take(range(len(p1), gtr.shape[1]), axis=1)
         ac1 = gtpop1.count_alleles()
         ac2 = gtpop2.count_alleles()
-        #jsfs = allel.joint_sfs(ac1[:, 1], ac2[:, 1])
         # jsfs
         if fold:
             # pad for allel as well
             popsizeA, popsizeB = len(p1)/2, len(p2)/2
-            fs = np.zeros((popsizeA + 1, popsizeB + 1), dtype=int)
             jsfs = allel.joint_sfs_folded(ac1, ac2)
-            fs[:jsfs.shape[0], :jsfs.shape[1]] = jsfs
+            fs = np.resize(jsfs, (popsizeA+1, popsizeB+1))
         else:
             # pad for allel as well
             popsizeA, popsizeB = len(p1), len(p2)
-            fs = np.zeros((popsizeA + 1, popsizeB + 1), dtype=int)
             jsfs = allel.joint_sfs(ac1[:, 1], ac2[:, 1])
-            fs[:jsfs.shape[0], :jsfs.shape[1]] = jsfs
+            fs = np.resize(jsfs, (popsizeA+1, popsizeB+1))
         props = summarizejsfs(fs)
         jsfs_list.append(props)
     jsfs = " ".join(map(str, np.concatenate(jsfs_list).ravel()))
@@ -900,7 +890,6 @@ def calc_afibs(gt, pos, pops, basepairs, fold):
     subsample = 'all'
     afibs = {}
     for i, pop in enumerate(pops):
-        afibs_gtlist = []
         ibsarray = np.zeros((len(pop), len(pop)-1))
         gtpop = gt.take(pop, axis=1)
         acpop = gtpop.count_alleles()
@@ -920,17 +909,14 @@ def calc_afibs(gt, pos, pops, basepairs, fold):
             for freq in range(1, len(pop)):
                 ibs = 0
                 mut_ix = np.where(freqlist == freq)[0]
-                for m in mut_ix:
-                    start = bisect.bisect_left(indpos, poslist[m])
-                    end = bisect.bisect_right(indpos, poslist[m])
-                    ibs += indpos[end] - indpos[start - 1]
-                try:
+                if len(mut_ix) > 0:
+                    for m in mut_ix:
+                        start = bisect.bisect_left(indpos, poslist[m])
+                        end = bisect.bisect_right(indpos, poslist[m])
+                        ibs += indpos[end] - indpos[start - 1]
                     ibsarray[ind, freq-1] = (ibs / len(mut_ix))
-                except ZeroDivisionError:
-                    # nothing in that freq class
-                    ibsarray[ind, freq-1] = 0
-            afibs_gtlist.append(np.mean(ibsarray, axis=0))
-        afibs[i] = np.mean(afibs_gtlist, axis=0)
+        ibsarray[ibsarray == 0] = np.nan
+        afibs[i] = np.nanmean(ibsarray, axis=0)
     # fold and export to list
     afibs_list = []
     if fold:

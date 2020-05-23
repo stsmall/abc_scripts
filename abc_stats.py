@@ -51,17 +51,10 @@ import numpy as np
 from math import ceil
 from tqdm import tqdm
 from timeit import default_timer as timer
-
-from sim_parse import ms_parse
-from sim_parse import split2pairs
-from sim_stats import SumStats
-from sim_stats import filetStats
-from sim_stats import asfsStats
-from sim_stats import jsfsStats
-from sim_stats import afibsStats
-from obs_stats import readMaskDataForScan
-from obs_stats import readSampleToPopFile
-
+from sim_parse import ms_parse, split2pairs
+from sim_stats import SumStats, filetStats, asfsStats, jsfsStats, afibsStats
+from obs_stats import readMaskDataForScan, readSampleToPopFile, makeAncArray
+from obs_stats import asfsObsStats, jsfsObsStats, afibsObsStats, filetObsStats
 # set globals
 chunk = 100
 chunkopt = True
@@ -90,7 +83,7 @@ def pair_split(msdict, out_file, pairs):
         split2pairs(msdict, out_file, p1, p2)
 
 
-def header_fx(pairs, pops, sfs=False, jsfs=False, afibs=False, filet=False):
+def header_fx(pairs, pops, sfs=False, jsfs=False, afibs=False, filet=False, obs=False):
     """Create header for outfile.
 
     Parameters
@@ -127,11 +120,14 @@ def header_fx(pairs, pops, sfs=False, jsfs=False, afibs=False, filet=False):
     asfs_header = []
     jsfs_header = []
     filet_header = []
-    sub_pops = set([int(item) for x in [x.split("-") for x in pairs] for item in x])
+    sub_pops = list(dict.fromkeys([item for x in [x.split("-") for x in pairs] for item in x]))
 
     if afibs:
         for i, p in enumerate(sub_pops):
-            for j in range(1, len(pops[i])):
+            haps = len(pops[i])
+            if obs:
+                haps *= 2
+            for j in range(1, haps+1):
                 afibs_header.append(f"afL{j}_{p}")
     if sfs:
         for p in sub_pops:
@@ -239,7 +235,7 @@ def calc_sfs(ms, outdir, pairs, sum_stats, nprocs):
         else:
             # number of chunks
             nk = chunk
-             # check that there are not more requested than available
+            # check that there are not more requested than available
             if nprocs > multiprocessing.cpu_count():
                 nprocs = multiprocessing.cpu_count()
             # set pool and map
@@ -292,7 +288,7 @@ def calc_jsfs(ms, outdir, pairs, sum_stats, nprocs):
         else:
             # number of chunks
             nk = chunk
-             # check that there are not more requested than available
+            # check that there are not more requested than available
             if nprocs > multiprocessing.cpu_count():
                 nprocs = multiprocessing.cpu_count()
             # set pool and map
@@ -345,7 +341,7 @@ def calc_afibs(ms, outdir, pairs, sum_stats, basepairs, nprocs):
         else:
             # number of chunks
             nk = chunk
-             # check that there are not more requested than available
+            # check that there are not more requested than available
             if nprocs > multiprocessing.cpu_count():
                 nprocs = multiprocessing.cpu_count()
             # set pool and map
@@ -629,8 +625,8 @@ def calc_simstats(ms, outdir, msdict, pairs, stats, filetpath, nprocs, window):
                       window)
 
 
-def calc_observedstats(vcfFile, chr_arm, chrlen, outFile, maskFile, anc_fasta,
-                       window, unmskfrac, pops, sampleFile, stats, filet_path):
+def calc_obsStats(vcfFile, chr_arm, chrlen, outFile, maskFile, anc_fasta,
+                  window, unmskfrac, pairs, sampleFile, stats, filet_path):
     """Calculate Obs stats.
 
     vcfFile
@@ -646,43 +642,80 @@ def calc_observedstats(vcfFile, chr_arm, chrlen, outFile, maskFile, anc_fasta,
     None.
 
     """
-    breakpoint()
+    vcf_path = os.path.abspath(vcfFile)
+    outdir = os.path.dirname(vcf_path)
     calls = allel.read_vcf(vcfFile)
     chroms = calls["variants/CHROM"]
     positions = np.extract(chroms == chr_arm, calls["variants/POS"])
     #
     samples = calls["samples"]
     sample_pop = readSampleToPopFile(sampleFile)
+    sub_pops = list(dict.fromkeys([item for x in [x.split("-") for x in pairs] for item in x]))
     sample_ix = []
-    for pop in pops:
+    for pop in sub_pops:
         sample_ix.append([i for i in range(len(samples)) if sample_pop.get(samples[i], "popNotFound!") == pop])
     #
-    rawgenos = np.take(vcfFile["calldata/GT"], [i for i in range(len(chroms)) if chroms[i] == chr_arm], axis=0)
-    genos = allel.GenotypeArray(rawgenos).subset(sel1=sample_ix)
+    rawgenos = np.take(calls["calldata/GT"], [i for i in range(len(chroms)) if chroms[i] == chr_arm], axis=0)
     #
     if maskFile:
         unmasked = readMaskDataForScan(maskFile, chr_arm)
         assert len(unmasked) == chrlen
     #
-    alleleCounts = genos.count_alleles()
+    gt = allel.GenotypeArray(rawgenos)
     snps = [i for i in range(len(positions)) if unmasked[positions[i]-1]]
-    genos = allel.GenotypeArray(genos.subset(sel0=snps))
-    positions = [positions[i] for i in snps]
-    alleleCounts = allel.AlleleCountsArray([[alleleCounts[i][0], max(alleleCounts[i][1:])] for i in snps])
-
+    gt = allel.GenotypeArray(gt.subset(sel0=snps))
+    pos = allel.SortedIndex([positions[i] for i in snps])
+    # alleleCounts = allel.AlleleCountsArray([[alleleCounts[i][0], max(alleleCounts[i][1:])] for i in snps])
     # start stats
     if "sfs" in stats:
         # asfs
-        pass
+        header = header_fx(pairs, "", sfs=True)
+        out_file = os.path.join(outdir, f"{outFile}.sfs")
+        if os.path.exists(out_file):
+            mode = 'a'
+        else:
+            mode = 'w'
+        with open(out_file, mode) as out:
+            out.write(f"{header}\n")
+            sfs_list = asfsObsStats([pos, gt, sample_ix])
+            out.write(f"{sfs_list}")
+
     if "jsfs" in stats:
-        # jsfs
-        pass
+        header = header_fx(pairs, "", jsfs=True)
+        out_file = os.path.join(outdir, f"{outFile}.jsfs")
+        if os.path.exists(out_file):
+            mode = 'a'
+        else:
+            mode = 'w'
+        with open(out_file, mode) as out:
+            out.write(f"{header}\n")
+            jsfs_list = jsfsObsStats([pos, gt, sample_ix])
+            out.write(f"{jsfs_list}")
     if "afibs" in stats:
-        pass
-        # afibs
+        header = header_fx(pairs, sample_ix, afibs=True, obs=True)
+        out_file = os.path.join(outdir, f"{outFile}.afibs")
+        if os.path.exists(out_file):
+            mode = 'a'
+        else:
+            mode = 'w'
+        with open(out_file, mode) as out:
+            out.write(f"{header}\n")
+            afibs_list = afibsObsStats([pos, gt, sample_ix, window, chrlen])
+            out.write(f"{afibs_list}")
     if "filet" in stats:
-        pass
-        # filet
+        if anc_fasta:
+            anc_arr = makeAncArray(calls, pos, chr_arm, anc_fasta)
+        filet_header = header_fx(pairs, "", filet=True)
+        out_file = os.path.join(outdir, f"{outFile}.filet")
+        if os.path.exists(out_file):
+            mode = 'a'
+        else:
+            mode = 'w'
+        with open(out_file, mode) as out:
+            out.write(f"{filet_header}\n")
+            filet_list = filetObsStats([pos, gt, sample_ix, chrlen], unmasked,
+                                       anc_arr, unmskfrac, window, filet_path)
+            out.write(f"{filet_list}")
 
 
 def parse_args(args_in):
@@ -796,7 +829,7 @@ def main():
         win_slide = argsDict["win_slide"]
         unmasked_frac = argsDict["unmasked_frac_cutoff"]
         pairs = argsDict["pairs"]
-        pops = argsDict["pops_file"]
+        pops_file = argsDict["pops_file"]
         stats = argsDict["stats"]
         filet_path = argsDict["filet_path"]
     # =========================================================================
@@ -808,7 +841,6 @@ def main():
             npairs.append(f"{p1}-{p2}")
     else:
         npairs = pairs
-
     if argsDict["mode"] == "sim":
         # get path to file/dir
         if os.path.isdir(ms_file):
@@ -818,7 +850,7 @@ def main():
             msfiles = [ms_file]
         # for each file
         for ms in msfiles:
-            print(f"reading file ...")
+            print("reading file ...")
             start = timer()
             msdict = ms_parse(ms)
             end = timer()
@@ -826,7 +858,7 @@ def main():
             if split:
                 pair_split(msdict, out_dir, npairs)
             else:
-                print(f"starting stats ...")
+                print("starting stats ...")
                 start = timer()
                 calc_simstats(ms,
                               out_dir,
@@ -839,9 +871,9 @@ def main():
                 end = timer()
                 print(f"total time for stats: {end - start}")
     elif argsDict["mode"] == "obs":
-        calc_observedstats(vcf, chrom, chrom_len, out_file, mask_file, anc_fasta,
-                           [win_size, win_slide], unmasked_frac, pairs, pops,
-                           stats, filet_path)
+        calc_obsStats(vcf, chrom, chrom_len, out_file, mask_file, anc_fasta,
+                      [win_size, win_slide], unmasked_frac, npairs, pops_file,
+                      stats, filet_path)
 
 
 if __name__ == "__main__":

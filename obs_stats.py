@@ -384,7 +384,7 @@ def afibsObsStats(args, fold=False):
     afibs = " ".join(map(str, [i for t in afibsmean for i in t]))
     return f"{afibs}\n"
 
-# TODO: filet, add SortedIndex, locate_range()
+# TODO: filet, add SortedIndex, locate_range(), dxymin not > 1
 def filetObsStats(args, unmasked, anc_arr, unmskfrac, window, filet_path):
     """
 

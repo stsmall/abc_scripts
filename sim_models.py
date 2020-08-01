@@ -86,10 +86,10 @@ class Model(object):
                     if "Ne" in event:
                         # key = Ne_1_100000_0
                         _, pop, size, grow = params.split("_")
-                        size = size * (ploidy/4.0)
+                        size = int(size) * (ploidy/4.0)
                         init_size[int(pop)-1] = size
                         if pop not in sourcelist:
-                            new_Ne = int(size) / scaled_Ne
+                            new_Ne = size / scaled_Ne
                             if float(grow) > 0:
                                 dem_list.append(f"-en {new_time} {pop} {new_Ne} {grow}")
                             else:
@@ -153,7 +153,7 @@ class Model(object):
                     if "Ne" in event:
                         # key = Ne_1_100000_0
                         _, pop, size, grow = params.split("_")
-                        size = size * (ploidy/4.0)
+                        size = int(size) * (ploidy/4.0)
                         pop = f"{int(pop)-1}"
                         init_size[int(pop)] = size
                         if pop not in sourcelist:

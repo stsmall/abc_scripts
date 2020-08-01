@@ -168,7 +168,7 @@ def sim_syntax(ms_path, model_dict):
     # populations
     sample_sizes = model_dict["sampleSize"]
     npops = len(sample_sizes)
-    ploidy = model_dict["ploidy"]
+    ploidy = model_dict["ploidy"] * 2
     locus_len = model_dict["contig_length"]
     effective_size = model_dict["eff_size"]
 
@@ -187,7 +187,7 @@ def sim_syntax(ms_path, model_dict):
         if type(mut_rate) == list:
             low, high = mut_rate
             mut_rate = np.random.uniform(low, high)
-        scaled_Ne = int(np.round((theta_nuc/(2*ploidy*mut_rate))))
+        scaled_Ne = ploidy * int(np.round((theta_nuc/(mut_rate))))
     elif effective_size:
         scaled_Ne = effective_size
     else:
@@ -208,7 +208,7 @@ def sim_syntax(ms_path, model_dict):
         if type(rec_rate) == list:
             low, high = rec_rate
             rec_rate = np.random.uniform(low, high)
-        rho = 4*scaled_Ne*rec_rate * locus_len
+        rho = ploidy*scaled_Ne*rec_rate * locus_len
     else:
         rho = 0
 
@@ -224,7 +224,7 @@ def sim_syntax(ms_path, model_dict):
         gen_cov = ""
 
     # subops
-    init_sizes = model_dict["initialSize"]
+    init_sizes = [size * (ploidy/4.0) for size in model_dict["initialSize"]]
     grow_rate = model_dict["growthRate"]
     mig_mat = model_dict["migMat"]
 

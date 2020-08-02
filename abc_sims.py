@@ -187,7 +187,7 @@ def sim_syntax(ms_path, model_dict):
         if type(mut_rate) == list:
             low, high = mut_rate
             mut_rate = np.random.uniform(low, high)
-        scaled_Ne = ploidy * int(np.round((theta_nuc/(mut_rate))))
+        scaled_Ne = (ploidy/4.0) * int(np.round((theta_nuc/(4*mut_rate))))
     elif effective_size:
         scaled_Ne = effective_size
     else:

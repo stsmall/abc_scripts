@@ -1,9 +1,10 @@
 #to be inferred: Fun_moz 1, Like 2, Van 3, Lon 4, Par 5, Unk 6
+# ej time p1 p2
 # es time p1 p2 1-admx
 # tm time p1 p2 admx
 # ea time p1 p2 p1 admx
 tbi0 tm 15 rUintL 130000 160000 rUflt 0.11 0.38
-tbi1 tm 45 rUintL 336800 496600 rUflt 0.37 0.52
+#tbi1 tm 45 rUintL 336800 496600 rUflt 0.37 0.52
 tbi2 ej 12 rUintL 383000 589000
 tbi3 tm 32 rUintL 750000 950000 rUflt 0.29 0.35
 tbi4 ej 43 rUintL 684600 884700

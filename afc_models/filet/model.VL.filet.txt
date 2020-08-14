@@ -1,0 +1,29 @@
+model7_VL.1.txt
+tbi0 tm 15 rUintL 130000 160000 rUflt 0.11 0.38
+tbi1 tm 45 rUintL 336800 496600 rUflt 0.37 0.52
+tbi8 tm 34 rUintL 100000 500000 rUflt 0.1 0.9
+tbi2 ej 12 rUintL 383000 589000
+tbi3 tm 32 rUintL 750000 950000 rUflt 0.29 0.35
+tbi4 ej 43 rUintL 684600 884700
+tbi5 tm 52 rUintL 750000 950000 rUflt 0.17 0.27
+tbi6 ej 35 rUintL 960000 1260000
+tbi7 ej 25 rUintL 2340000 2440000
+model7_VL.2.txt
+tbi0 tm 15 rUintL 130000 160000 rUflt 0.11 0.38
+tbi1 tm 45 rUintL 336800 496600 rUflt 0.37 0.52
+tbi8 tm 43 rUintL 100000 500000 rUflt 0.1 0.9
+tbi2 ej 12 rUintL 383000 589000
+tbi3 tm 32 rUintL 750000 950000 rUflt 0.29 0.35
+tbi4 ej 43 rUintL 684600 884700
+tbi5 tm 52 rUintL 750000 950000 rUflt 0.17 0.27
+tbi6 ej 35 rUintL 960000 1260000
+tbi7 ej 25 rUintL 2340000 2440000
+model7_VL.3.txt
+tbi0 tm 15 rUintL 130000 160000 rUflt 0.11 0.38
+tbi1 tm 45 rUintL 336800 496600 rUflt 0.37 0.52
+tbi2 ej 12 rUintL 383000 589000
+tbi3 tm 32 rUintL 750000 950000 rUflt 0.29 0.35
+tbi4 ej 43 rUintL 684600 884700
+tbi5 tm 52 rUintL 750000 950000 rUflt 0.17 0.27
+tbi6 ej 35 rUintL 960000 1260000
+tbi7 ej 25 rUintL 2340000 2440000

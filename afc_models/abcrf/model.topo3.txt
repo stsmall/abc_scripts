@@ -1,13 +1,14 @@
 #to be inferred: Fun_moz 1, Like 2, Van 3, Lon 4, Par 5, Unk 6
+# ej time p1 p2
 # es time p1 p2 1-admx
 # tm time p1 p2 admx
 # ea time p1 p2 p1 admx
-tbi0 tm 15 rUintL 130000 160000 rUflt 0.11 0.38
-tbi1 ej 45 rUintL 330000 490000
-tbi2 ej 12 rUintL 383000 589000
-tbi3 tm 32 rUintL 750000 950000 rUflt 0.29 0.35
-tbi4 tm 52 rUintL 750000 950000 rUflt 0.17 0.27
-tbi5 ej 35 rUintL 990000 1090000
+tbi0 tm 43 rUintL 20000 tbi1 rUflt 0.1 0.9
+tbi1 ej 45 rUintL 250000 700000
+tbi2 tm 32 rUintL 750000 tbi3 rUflt 0.1 0.9
+tbi3 ej 35 rUintL 900000 1500000
+tbi4 tm 25 rUintL tbi3 tbi5 rUflt 0.1 0.9
+tbi5 ej 12 rUintL 1200000 2000000
 tbi6 ej 52 rUintL 2340000 2440000
 #moz demography
 7801 Ne 1 178924 0

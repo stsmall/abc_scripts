@@ -1,4 +1,4 @@
-model7_FK.1.txt
+model7_FK.mig1mig21.txt
 tbi0 tm 15 rUintL 130000 160000 rUflt 0.11 0.38
 tbi1 tm 45 rUintL 336800 496600 rUflt 0.37 0.52
 tbi8 tm 12 rUintL 1000 tbi2 rUflt 0.1 0.9
@@ -8,7 +8,7 @@ tbi4 ej 43 rUintL 684600 884700
 tbi5 tm 52 rUintL 750000 950000 rUflt 0.17 0.27
 tbi6 ej 35 rUintL 960000 1260000
 tbi7 ej 25 rUintL 2340000 2440000
-model7_FK.2.txt
+model7_FK.mig21.txt
 tbi0 tm 15 rUintL 130000 160000 rUflt 0.11 0.38
 tbi1 tm 45 rUintL 336800 496600 rUflt 0.37 0.52
 tbi8 tm 21 rUintL 1000 tbi2 rUflt 0.1 0.9
@@ -18,7 +18,7 @@ tbi4 ej 43 rUintL 684600 884700
 tbi5 tm 52 rUintL 750000 950000 rUflt 0.17 0.27
 tbi6 ej 35 rUintL 960000 1260000
 tbi7 ej 25 rUintL 2340000 2440000
-model7_FK.3.txt
+model7_FK.noMig.txt
 tbi0 tm 15 rUintL 130000 160000 rUflt 0.11 0.38
 tbi1 tm 45 rUintL 336800 496600 rUflt 0.37 0.52
 tbi2 ej 12 rUintL 383000 589000

@@ -31,7 +31,9 @@ If you need to calculate statistics from data to serve as the target for the app
 
 **noMig.msOut** no migration between the species pairs.
 
-As above simulations are run using the `python abc_sims.py`. However, FILET has only been tested on the feature vector of summary statistics listed in the official FILET publication. Thus, I would recommend following the turorials and using the provided tools listed at www.github.com/kr-colab/FILET once you have the simulations. *helper scripts* I have also written some helper scripts to take you from the simulations to the final training set.
+As above simulations are run using the `python abc_sims.py`. However, FILET has only been tested on the feature vector of summary statistics listed in the official FILET publication. Thus, I would recommend following the turorials and using the provided tools listed at www.github.com/kr-colab/FILET once you have the simulations.
+
+*helper scripts* I have also written some helper scripts to take you from the simulations to the final training set `proc.FILET.sh`
 
 
 ## Other content in this directory

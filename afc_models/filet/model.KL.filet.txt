@@ -1,8 +1,12 @@
-model7_KL.mig1mig21.txt
+#K=funestus-like=2
+#L=longipalpisC=4
+model7_KL.mig12.txt
 tbi0 tm 15 rUintL 130000 160000 rUflt 0.11 0.38
 tbi1 tm 45 rUintL 336800 496600 rUflt 0.37 0.52
 tbi2 ej 12 rUintL 383000 589000
+#
 tbi3 tm 24 rUintL 750000 950000 rUflt 0.29 0.35
+#
 tbi4 ej 34 rUintL 684600 884700
 tbi5 tm 52 rUintL 750000 950000 rUflt 0.17 0.27
 tbi6 ej 45 rUintL 960000 1260000
@@ -11,7 +15,9 @@ model7_KL.mig21.txt
 tbi0 tm 15 rUintL 130000 160000 rUflt 0.11 0.38
 tbi1 tm 45 rUintL 336800 496600 rUflt 0.37 0.52
 tbi2 ej 12 rUintL 383000 589000
+#
 tbi3 tm 42 rUintL 750000 950000 rUflt 0.29 0.35
+#
 tbi4 ej 34 rUintL 684600 884700
 tbi5 tm 52 rUintL 750000 950000 rUflt 0.17 0.27
 tbi6 ej 45 rUintL 960000 1260000

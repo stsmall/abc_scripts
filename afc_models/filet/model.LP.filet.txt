@@ -1,6 +1,10 @@
-model7_LP.mig1mig21.txt
+#L=longipalpisC=4
+#P=parensis=5
+model7_LP.mig12.txt
 tbi0 tm 15 rUintL 130000 160000 rUflt 0.11 0.38
+#
 tbi1 tm 45 rUintL 100000 500000 rUflt 0.1 0.9
+#
 tbi2 ej 12 rUintL 383000 589000
 tbi3 tm 32 rUintL 750000 950000 rUflt 0.29 0.35
 tbi4 ej 43 rUintL 684600 884700
@@ -9,7 +13,9 @@ tbi6 ej 35 rUintL 960000 1260000
 tbi7 ej 25 rUintL 2340000 2440000
 model7_LP.mig21.txt
 tbi0 tm 15 rUintL 130000 160000 rUflt 0.11 0.38
+#
 tbi1 tm 54 rUintL 100000 500000 rUflt 0.1 0.9
+#
 tbi2 ej 12 rUintL 383000 589000
 tbi3 tm 32 rUintL 750000 950000 rUflt 0.29 0.35
 tbi4 ej 43 rUintL 684600 884700

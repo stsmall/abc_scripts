@@ -1,8 +1,8 @@
 # F=funestus=1
 # L=LongipalpisC=4
-model7_FL.mig21.txt
+model7_FL.mig12.txt
 tbi0 tm 15 rUintL 130000 160000 rUflt 0.11 0.38
-# FL
+# F->L
 tbi8 tm 14 rUintL 1000 tbi2 rUflt 0.1 0.9
 #
 tbi1 tm 45 rUintL 336800 496600 rUflt 0.37 0.52
@@ -14,7 +14,7 @@ tbi6 ej 35 rUintL 960000 1260000
 tbi7 ej 25 rUintL 2340000 2440000
 model7_FL.mig21.txt
 tbi0 tm 15 rUintL 130000 160000 rUflt 0.11 0.38
-# FL
+# F<-L
 tbi8 tm 41 rUintL 1000 tbi2 rUflt 0.1 0.9
 #
 tbi1 tm 45 rUintL 336800 496600 rUflt 0.37 0.52

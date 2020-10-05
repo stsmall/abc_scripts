@@ -1,7 +1,11 @@
-model7_VL.mig1mig21.txt
+#V=vaneedeni=3
+#L=longipalpisC=4
+model7_VL.mig12.txt
 tbi0 tm 15 rUintL 130000 160000 rUflt 0.11 0.38
 tbi1 tm 45 rUintL 336800 496600 rUflt 0.37 0.52
+#
 tbi8 tm 34 rUintL 100000 500000 rUflt 0.1 0.9
+#
 tbi2 ej 12 rUintL 383000 589000
 tbi3 tm 32 rUintL 750000 950000 rUflt 0.29 0.35
 tbi4 ej 43 rUintL 684600 884700
@@ -11,7 +15,9 @@ tbi7 ej 25 rUintL 2340000 2440000
 model7_VL.mig21.txt
 tbi0 tm 15 rUintL 130000 160000 rUflt 0.11 0.38
 tbi1 tm 45 rUintL 336800 496600 rUflt 0.37 0.52
+#
 tbi8 tm 43 rUintL 100000 500000 rUflt 0.1 0.9
+#
 tbi2 ej 12 rUintL 383000 589000
 tbi3 tm 32 rUintL 750000 950000 rUflt 0.29 0.35
 tbi4 ej 43 rUintL 684600 884700

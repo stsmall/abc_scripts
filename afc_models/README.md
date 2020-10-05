@@ -1,5 +1,5 @@
 # Models used in our PNAS paper on An. funestus complex (AFC)
-[Radiation with reticulation marks the origin of a major malaria vector](LINK)
+[Radiation with reticulation marks the origin of a major malaria vector.](LINK)
 
 Our paper on the An funestus complex deals with trying to place reticulations on a species tree when many of the reticulations are recursive (kind of). We approached this problem by using population genomic data and model selection. Here we present the three steps of our simulations.
 

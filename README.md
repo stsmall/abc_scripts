@@ -17,7 +17,7 @@ Not everything is documented yet, but most scripts have some helpful information
 ## Contents
 
 * [examples](#How-to-make-it-run)
-* [AFC_models](#Models-of-the-An-funestus-complex)
+* [Models of the An. funestus complex](#Models-of-the-An-funestus-complex)
 * [Calculating statistics for simulations](#Calculating-statistics-for-comparative-genome-assembly)
 * [Calculating observed statistics](#Misc-population-genetics-scripts)
 

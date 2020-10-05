@@ -32,3 +32,21 @@ If you need to calculate statistics from data to serve as the target for the app
 **noMig.msOut** no migration between the species pairs.
 
 As above simulations are run using the `python abc_sims.py`. However, FILET has only been tested on the feature vector of summary statistics listed in the official FILET publication. Thus, I would recommend following the turorials and using the provided tools listed at www.github.com/kr-colab/FILET once you have the simulations.
+
+
+## Other content in this directory
+
+### AFC.pi.dist.txt
+Distribution of nucleotide diversity in 100kb windows along the genome using [pi_xy](LINK)
+### AFC.pi.noncoding.dist.txt
+Distribution of nucleotide diversity in 100kb windows along the genome using pi_xy, retaining only windows that are 5kb from coding loci
+### AFC.rho.dist.txt
+Distribution of the population recombination rate in 100kb windows along the genome using [LDJump](LINK)
+### AFC.rho.noncoding.dist.txt
+Distribution of the population recombination rate in 100kb windows along the genome using LDJump retaining only windows that are 5kb from coding loci
+### inversion_coordinates.Afunpv21.bed
+A bed file listing the coordinates of the main polymorphic inversion in An. funestus: 3Ra, 3Rb, 2Ra, and 3La.
+### migration_mat.txt
+An example migration matrix file for using with the abc_sims.py
+### AFC.abc.cfg
+The generic config file used with abc_sims.py that lists the sample sizes and effective population sizes used for the PNAS publication.

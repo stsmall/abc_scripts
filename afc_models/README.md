@@ -3,12 +3,18 @@
 
 Our paper on the An funestus complex deals with trying to place reticulations on a species tree when many of the reticulations are recursive (kind of). We approached this problem by using population genomic data and model selection. Here we present the three steps of our simulations.
 
-[First](abcrf), we sought to find the species tree with reticulations that best explained the evolutionary history of the AFC. We focuses on three candidate models based on results of admxituregraph. These models are named according to the tree topology that they represent: topo1, topo3, topo7 (see [Fig2](LINK) for more details). Each of these models is run the same way using the code in the repository:
+[First](abcrf), we sought to find the species tree with reticulations that best explained the evolutionary history of the AFC. We focuses on three candidate models based on results of admxituregraph. These models are named according to the tree topology that they represent: topo1, topo3, topo7 (see [Fig2](LINK) for more details). Each of these models is run the same way using the code in the repository.  
+
 `abc_sims.py -cfg AFC.abc.cfg -i 100 --ms msmove -m topo.model7.txt --out m7.msSims`
-This will create a file with '100' lines (iterations) that can be run from the command line where 'model.topo7.txt' is used to set up the simulation demography, split times, and admxiture rates. It will use the coalescent simulator [msmove](https://github.com/geneva/msmove) and the input config file 'AFC.abc.cfg'. The output file will be named 'm7.smSims'. Statistics for the output file can then be calculated using 'abc_stats.py'.
+
+This will create a file with '100' lines (iterations) that can be run from the command line where 'model.topo7.txt' is used to set up the simulation demography, split times, and admxiture rates. It will use the coalescent simulator [msmove](https://github.com/geneva/msmove) and the input config file 'AFC.abc.cfg'. The output file will be named 'm7.smSims'. Statistics for the output file can then be calculated using 'abc_stats.py'.  
+
 `abc_stats.py sim --infile ms7.msSims --outfile m7.stats.txt --pops 4 --pairs 0-1 0-2 0-3 --stats sfs jsfs --mask FOO.mask --gff FOO.gff --mode split-run`
-If you need to calculate statistics from data to serve as the target for the approximate bayesian computation, you can use:
+
+If you need to calculate statistics from data to serve as the target for the approximate bayesian computation, you can use.  
+
 `abc_stats.py obs YOUR.VCF CHR CHROM_LENGTH OUTPUT sample_pops.txt --pairs Moz Lik Van Lon Par --stats sfs jsfs --mask_file AFC.mask.fasta`
+
 
 [Second](abc_tree7), we determined that the best-fit topology with reticulations was topology/tree vii (7). To generate simulations for approximate bayesian computation (ABC) to estimate parameters such as introgression times and divergence times simultaneously you can once again you the above procedure for generating simulations and then calculating summary statistics. 
 `abc_sims.py -cfg AFC.abc.cfg -i 100 --ms msmove -m topo.model7.txt --out m7.msSims`

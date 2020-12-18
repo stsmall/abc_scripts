@@ -39,11 +39,11 @@ As above simulations are run using the `python abc_sims.py`. However, FILET has 
 ## Other content in this directory
 
 ### AFC.pi.dist.txt
-Distribution of nucleotide diversity in 100kb windows along the genome using [pi_xy](LINK)
+Distribution of nucleotide diversity in 100kb windows along the genome using [pi_xy](https://github.com/ksamuk/pixy)
 ### AFC.pi.noncoding.dist.txt
 Distribution of nucleotide diversity in 100kb windows along the genome using pi_xy, retaining only windows that are 5kb from coding loci
 ### AFC.rho.dist.txt
-Distribution of the population recombination rate in 100kb windows along the genome using [LDJump](LINK)
+Distribution of the population recombination rate in 100kb windows along the genome using [LDJump](https://onlinelibrary.wiley.com/doi/full/10.1111/1755-0998.12994)
 ### AFC.rho.noncoding.dist.txt
 Distribution of the population recombination rate in 100kb windows along the genome using LDJump retaining only windows that are 5kb from coding loci
 ### inversion_coordinates.Afunpv21.bed

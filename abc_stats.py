@@ -28,7 +28,7 @@ Notes
 Creates summary stats from coalescent simulations: ms, msmove, discoal, msprime
 There are two main modes: sims and obs
 
- Mode 'sims' is for ms-style formats but will also use msprime treeseqs (TODO)
+ Mode 'sims' is for ms-style formats in any file, those produced by abc_sims.py
 
  Mode 'obs' is for generating the same stats but with a starting vcf. Take a look
     at generating mask files from FILET and diploshic

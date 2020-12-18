@@ -13,8 +13,7 @@ Example
 abc_sims.py -cfg examples/example.cfg -i 100000 --ms msmove --out test
 
 generates a file with a random name that has 5,000 lines. each line is a call
-to msmove under the CONFIG specifications. The --filet option tells the main
-where to find the other modules. Basically an import issue.
+to msmove under the CONFIG specifications.
 
 Notes
 -----
@@ -30,10 +29,21 @@ import numpy as np
 import configparser
 from collections import defaultdict
 from tqdm import trange
+
 from sim_params import drawParams
 from sim_params import get_dist
 from sim_models import Model
+
 import logging
+from datetime import datetime
+# =========================================================================
+#  Globals
+# =========================================================================
+now = datetime.now()
+dt_string = now.strftime("%d_%m_%Y.%H_%M_%S")
+logout = f"{dt_string}.log"
+logging.basicConfig(filename=logout, filemode='w', encoding='utf-8', level=logging.DEBUG)
+# =========================================================================
 
 
 def selection_parse(model_dict, ms_dict):
@@ -50,7 +60,7 @@ def selection_parse(model_dict, ms_dict):
 
     """
     scaled_Ne = ms_dict["scaled_Ne"]
-    rho_loc = ms_dict["rho_loc"],
+    rho_loc = ms_dict["rho_loc"]
     # sel params
     sel_dict = model_dict["sel_dict"]
     pop0_Ne = sel_dict["pop0_Ne"]
@@ -164,75 +174,58 @@ def sim_syntax(ms_path, model_dict):
 
     """
     ms_dict = {}
-
     # populations
     sample_sizes = model_dict["sampleSize"]
     npops = len(sample_sizes)
-    ploidy = model_dict["ploidy"] * 2
+    ploidy = model_dict["ploidy"]
     locus_len = model_dict["contig_length"]
-    effective_size = model_dict["eff_size"]
+    effective_size = model_dict["eff_size"] * ploidy
 
-    # need theta
-    theta_arr = model_dict["theta"]
-    if len(theta_arr) == 1:
-        # command line or just 1 entry in file
-        theta_nuc = theta_arr
-    else:
-        theta_nuc = np.random.choice(theta_arr)
-    theta_loc = theta_nuc * locus_len
-
-    # need scaled Ne
+    # calc theta
     mut_rate = model_dict["mutation_rate"]
-    if mut_rate:
-        if type(mut_rate) == list:
+    if type(mut_rate) == list:
+        if len(mut_rate) == 2:
             low, high = mut_rate
-            mut_rate = np.random.uniform(low, high)
-        scaled_Ne = (ploidy/4.0) * int(np.round((theta_nuc/(4*mut_rate))))
-    elif effective_size:
-        scaled_Ne = effective_size
+            mu = np.random.uniform(low, high)
+        else:
+            mu = np.random.choice(mut_rate)
     else:
-        raise ValueError("must provide mutation rate or effective size")
-        return None
+        mu = mut_rate
+    theta_loc = 4 * effective_size * mu * locus_len
 
-    # recombination rate
-    rho_arr = model_dict["rho"]
-    rho_mu = model_dict["rho_mu"]
+    # calc rho rate
     rec_rate = model_dict["recombination_rate"]
-    if len(rho_arr) == 1:
-        rho = rho_arr * locus_len
-    elif rho_mu:
-        rho = theta_loc * rho_mu
-    elif len(rho_arr) > 1:
-        rho = np.random.choice(rho_arr) * locus_len
-    elif rec_rate:
-        if type(rec_rate) == list:
-            low, high = rec_rate
-            rec_rate = np.random.uniform(low, high)
-        rho = ploidy*scaled_Ne*rec_rate * locus_len
-    else:
+    if type(rec_rate) == list:
+        if len(rec_rate) == 2:
+            low, high = mut_rate
+            rho = np.random.uniform(low, high)
+        else:
+            rho = np.random.choice(rec_rate)
+    elif rec_rate is None:
         rho = 0
+    else:
+        rho = rec_rate
+    rho_loc = 4 * effective_size * rho * locus_len
 
     # gene conversion
     gen_conversion = model_dict["gene_conversion"][0]
     if gen_conversion > 0:
         tract = model_dict["gene_conversion"][1]
         if "discoal" in ms_path:
-            gen_cov = f"-gr {gen_conversion*rho} {tract}"
+            gen_cov = f"-gr {gen_conversion / rec_rate} {tract}"
         else:
-            gen_cov = f"-c {gen_conversion*rho} {tract}"
+            gen_cov = f"-c {gen_conversion / rec_rate} {tract}"
     else:
         gen_cov = ""
 
     # subops
-    init_sizes = [size * (ploidy/4.0) for size in model_dict["initialSize"]]
+    init_sizes = [size * ploidy for size in model_dict["initialSize"]]
     grow_rate = model_dict["growthRate"]
     mig_mat = model_dict["migMat"]
 
-    if "msprime" in ms_path:
-        pass
-    elif "discoal" in ms_path:
+    if "discoal" in ms_path:
         subpops = f"-p {npops} {' '.join(map(str, sample_sizes))}"
-        ne_sub_pops = [f"-en 0 {i} {pop_ne/scaled_Ne}" for i, pop_ne in enumerate(init_sizes)]
+        ne_sub_pops = [f"-en 0 {i} {pop_ne/effective_size}" for i, pop_ne in enumerate(init_sizes)]
         ne_subpop = " ".join(ne_sub_pops)
         grow_subpop = []
         if mig_mat:
@@ -246,7 +239,7 @@ def sim_syntax(ms_path, model_dict):
             mig_matrix = ""
     else:
         subpops = f"-I {npops} {' '.join(map(str, sample_sizes))}"
-        ne_sub_pops = [f"-n {i+1} {pop_ne/scaled_Ne}" for i, pop_ne in enumerate(init_sizes)]
+        ne_sub_pops = [f"-n {i+1} {pop_ne/effective_size}" for i, pop_ne in enumerate(init_sizes)]
         ne_subpop = " ".join(ne_sub_pops)
         if sum(grow_rate) == 0:
             grow_subpop = ""
@@ -261,8 +254,8 @@ def sim_syntax(ms_path, model_dict):
     ms_dict = {"npops": npops,
                "subpop": subpops,
                "theta_loc": theta_loc,
-               "scaled_Ne": scaled_Ne,
-               "rho_loc": rho,
+               "scaled_Ne": effective_size,
+               "rho_loc": rho_loc,
                "gen_cov": gen_cov,
                "ne_subpop": ne_subpop,
                "grow_subpop": grow_subpop,
@@ -303,7 +296,7 @@ def org_params(par_dict, demo_dict, eventkey_dict, cond_list):
             if params_dict[lt][0] > params_dict[gt][0]:
                 raise ValueError("param set conditions not met {lt} {gt}")
         except ValueError:
-            # logging.exception(f"%s %s > %s %s") %(lt, str(params_dict[lt][0]), gt, str(params_dict[gt][0]))
+            logging.warning(f"{lt} {str(params_dict[lt][0])} > {gt} {str(params_dict[gt][0])}")
             params_dict[lt][0] = params_dict[gt][0] - 1
 
     time_dict = defaultdict(lambda: defaultdict(list))
@@ -378,16 +371,14 @@ def simulate(model_dict, demo_dict, par_dict, eventkey_dict, cond_list, ms_path)
                 'demo': " ".join(dem_events),
                 'sel': " ".join(sel_list)
                 }
-    if "msprime" in ms_path:
-        pass
+
+    if "discoal" in ms_path:
+        ms_base = ("{ms} {nhaps} {loci} {basepairs} -t {theta} -r {rho} "
+                   "{gen_cov} {subpops} {ne_subpop} {demo} {sel}")
     else:
-        if "discoal" in ms_path:
-            ms_base = ("{ms} {nhaps} {loci} {basepairs} -t {theta} -r {rho} "
-                       "{gen_cov} {subpops} {ne_subpop} {demo} {sel}")
-        else:
-            ms_base = ("{ms} {nhaps} {loci} -t {theta} -r {rho} {basepairs} "
-                       "{gen_cov} {subpops} {ne_subpop} {growth_subpop} {migmat} {demo}")
-    # ms/msmove/discoal/msprime command line
+        ms_base = ("{ms} {nhaps} {loci} -t {theta} -r {rho} {basepairs} "
+                   "{gen_cov} {subpops} {ne_subpop} {growth_subpop} {migmat} {demo}")
+    # ms/msmove/discoal command line
     mscmd = ms_base.format(**ms_params)
     ms_cmd = " ".join(mscmd.split())
     return ms_cmd, params_dict
@@ -461,18 +452,8 @@ def parse_args(args_in):
                         help=" full path to ms/msmove/discoal exe")
     parser.add_argument("--out", type=str, required=True,
                         help="outfilename to write simulations")
-    parser.add_argument("--ploidy", type=float, default=2,
-                        help="options: hap=1, sex=1.5, auto=2")
-    parser.add_argument("--set_rho", type=float,
-                        help="value of rho per bp, overides rhomu")
-    parser.add_argument("--rhomu", type=float,
-                        help="ratio of rho/mu, overides recombination rate priors")
-    parser.add_argument("--set_theta", type=float,
-                        help="value of theta per bp. Requires a mutation rate in config,"
-                        "else use effective_size in config")
-    parser.add_argument("--set_priors", type=str,
-                        help="provide a list of priors to be reused will overide"
-                        " all other parameters")
+    parser.add_argument("--ploidy", type=float, default=1,
+                        help="options: hap=.5, sex=.75, auto=1")
     return(parser.parse_args(args_in))
 
 
@@ -484,41 +465,56 @@ def main():
     # =========================================================================
     configFile = args.configFile
     model_file = args.modelFile
-    outfile = args.out
     sim_number = args.iterations
     ms_path = args.ms
+    outfile = args.out
     ploidy = args.ploidy
-    rho_mu = args.rhomu
-    theta = args.set_theta
-    rho = args.set_rho
-    priors_dict = args.set_priors
 
+    model_dir = os.path.abspath(model_file)
+    out_path = os.path.split(model_dir)[0]
+    sim_path = os.path.join(out_path, f"{outfile}.{sim_number}.sims.out")
     # =========================================================================
     #  Config parser
     # =========================================================================
     config = configparser.ConfigParser(allow_no_value=True)
     config.read(configFile)
     config_path = os.path.split(os.path.abspath(configFile))[0]
+
     # simulation section
     sim = "simulation"
     contig_len = config.getint(sim, "contiglen")
     num_loci = config.getint(sim, "loci")
+    effective_size = config.getint(sim, "effective_population_size")
     recomb_rate = config.get(sim, "recombination_rate")
     if recomb_rate:
         if "," in recomb_rate:
             recomb_rate = list(map(float, recomb_rate.split(",")))
-        else:
+        elif recomb_rate[0].isalpha():
+            if os.path.exists(recomb_rate):
+                print(f"loading {recomb_rate} ...")
+                recomb_rate = np.loadtxt(recomb_rate)
+            else:
+                print(f"loading {os.path.join(config_path, recomb_rate)} ...")
+                recomb_rate = np.loadtxt(os.path.join(config_path, recomb_rate))
+        elif recomb_rate[0].isdigit():
             recomb_rate = float(recomb_rate)
+        else:
+            print("recombination not given, setting to 0")
     mutation_rate = config.get(sim, "mutation_rate")
     if mutation_rate:
         if "," in mutation_rate:
             mutation_rate = list(map(float, mutation_rate.split(",")))
-        else:
+        elif mutation_rate[0].isalpha():
+            if os.path.exists(mutation_rate):
+                print(f"loading {mutation_rate} ...")
+                mutation_rate = np.loadtxt(mutation_rate)
+            else:
+                print(f"loading {os.path.join(config_path, mutation_rate)} ...")
+                mutation_rate = np.loadtxt(os.path.join(config_path, mutation_rate))
+        elif mutation_rate[0].isdigit():
             mutation_rate = float(mutation_rate)
-    effective_size = config.get(sim, "effective_population_size")
-    if effective_size:
-        effective_size = int(effective_size)
-    assert mutation_rate or effective_size, f"require either mutation rate or effective size"
+        else:
+            raise ValueError("must provide mutation rate")
 
     # initialize section
     init = "initialize"
@@ -535,33 +531,12 @@ def main():
             migration_matrix = [val for sublist in mig_list for val in sublist]
     else:
         migration_matrix = ''
-    # parameters section
-    par = "parameters"
-    theta_file = config.get(par, "theta_distribution")
-    if theta_file:
-        if os.path.exists(theta_file):
-            theta_array = np.loadtxt(theta_file)
-        else:
-            theta_array = np.loadtxt(os.path.join(config_path, theta_file))
-    else:
-        theta_array = theta
-    assert theta_array.any() or theta, f"require either theta option or file"
-    rho_file = config.get(par, "rho_distribution")
-    if rho_file:
-        if os.path.exists(rho_file):
-            rho_array = np.loadtxt(rho_file)
-        else:
-            rho_array = np.loadtxt(os.path.join(config_path, rho_file))
-    else:
-        rho_array = rho
-    if rho_array.any() or rho or rho_mu or recomb_rate:
-        pass
-    else:
-        print("recombination or rho not given, setting to 0")
 
     # selection section
-    if config.has_section("selection"):
-        sel = "selection"
+    sel_dict = {}
+    if config.has_section("positive_selection"):
+        assert "discoal" in ms_path, "discoal needed for positive selection"
+        sel = "positive_selection"
         hide = config.getboolean(sel, "hide")
         alpha = config.get(sel, "sel_coeff")
         freq = config.get(sel, "soft_freq")
@@ -597,11 +572,27 @@ def main():
                 else:
                     sel_dict[key] = int(sel_dict[key])
         sel_dict["hide"] = hide
-    else:
-        sel_dict = {}
 
-    # build model dictionary
+    elif config.has_section("background_selection"):
+        assert "msbgs" in ms_path, "bgsms needed for background selection"
+        sel = "background_selection"
+        # Nr /μ is not small (>10, say) and Ne s is > 1
+        # sel_def = "10,20"
+        # region_def = "[0,1,2,3,4];[5,6,7,8,9]"
+        # sel_def = "10"
+        # region_def = "[(0_3_500),(1_3_500)]"
+        # sel_def = "0"
+        # region_def = "neutral"
+        selection = config.get(sel, "sel_def")
+        region = config.get(sel, "region_def")
+        sel_dict = {"sel_def": selection,
+                    "region_def": region}
+
+    # =========================================================================
+    #  Build model dictionary
+    # =========================================================================
     model_dict = {"contig_length": contig_len,
+                  "eff_size": effective_size,
                   "recombination_rate": recomb_rate,
                   "mutation_rate": mutation_rate,
                   "sampleSize": sample_sizes,
@@ -610,30 +601,14 @@ def main():
                   "gene_conversion": gene_conversion,
                   "migMat": migration_matrix,
                   "loci": num_loci,
-                  "eff_size": effective_size,
                   "ploidy": ploidy,
-                  "rho_mu": rho_mu,
-                  "theta": theta_array,
-                  "rho": rho_array,
                   "sel_dict": sel_dict
                   }
-    # =========================================================================
-    #  Set Path and File variable
-    # =========================================================================
-    model_dir = os.path.abspath(model_file)
-    out_path = os.path.split(model_dir)[0]
-    sim_path = os.path.join(out_path, f"{outfile}.{sim_number}.sims.out")
     # =========================================================================
     #  Main executions
     # =========================================================================
     #
     conditions, par_dict, eventkey_dict, demo_dict = drawParams(model_file)
-    if priors_dict:
-        # TO DO: set to take priors pickle or file
-        # read in priors file
-        # par_dict =
-        # eventkey_dict =
-        pass
     with open(f"{sim_path}.priors", 'w') as priors_outfile:
         priors_list = write_priors(eventkey_dict, [])
         priors_outfile.write(f"{priors_list}\n")

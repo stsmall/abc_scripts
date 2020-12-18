@@ -47,16 +47,16 @@ class Model(object):
 
         # build models
         if "discoal" in ms_path:
-            dem_list = self.modelNoMig_discoal(ord_events, model_dict, ms_dict)
+            dem_list = self.model_discoal(ord_events, model_dict, ms_dict)
         elif "msprime" in ms_path:
             pass
             # dem_list = self.modelNoMig_msprime(ord_events, model_dict, ms_dict)
         else:
-            dem_list = self.modelNoMig(ord_events, model_dict, ms_dict)
+            dem_list = self.model_ms(ord_events, model_dict, ms_dict)
         return dem_list
 
-    def modelNoMig(self, ord_events, model_dict, ms_dict):
-        """Create model with no migration for ms/msmove.
+    def model_ms(self, ord_events, model_dict, ms_dict):
+        """Create model for ms/msmove.
 
         Parameters
         ----------
@@ -73,20 +73,19 @@ class Model(object):
             DESCRIPTION.
 
         """
-        ploidy = model_dict["ploidy"] * 2
         npops = ms_dict["npops"]
         scaled_Ne = ms_dict["scaled_Ne"]
         init_size = list(model_dict["initialSize"])
         dem_list = []
         sourcelist = []
         for time in ord_events.keys():
-            new_time = time / (ploidy*scaled_Ne)
+            new_time = time / (4*scaled_Ne)
             for event in ord_events[time].keys():
                 for params in ord_events[time][event]:
                     if "Ne" in event:
                         # key = Ne_1_100000_0
                         _, pop, size, grow = params.split("_")
-                        size = int(size) * (ploidy/4.0)
+                        size = int(size)
                         init_size[int(pop)-1] = size
                         if pop not in sourcelist:
                             new_Ne = size / scaled_Ne
@@ -119,11 +118,11 @@ class Model(object):
                     elif "em" in event:
                         pop1, pop2 = event.split("_")[1]
                         if not any(i in sourcelist for i in [pop1, pop2]):
-                            mig = params*ploidy*init_size[pop1]
+                            mig = params*4*scaled_Ne
                             dem_list.append(f"-em {new_time} {pop1} {pop2} {mig}")
         return dem_list
 
-    def modelNoMig_discoal(self,  ord_events, model_dict, ms_dict):
+    def model_discoal(self,  ord_events, model_dict, ms_dict):
         """Create model with no migration for discoal.
 
         Parameters
@@ -141,19 +140,18 @@ class Model(object):
             DESCRIPTION.
 
         """
-        ploidy = model_dict["ploidy"] * 2
         scaled_Ne = ms_dict["scaled_Ne"]
         init_size = list(model_dict["initialSize"])
         dem_list = []
         sourcelist = []
         for time in ord_events.keys():
-            new_time = time / (ploidy*scaled_Ne)
+            new_time = time / (4*scaled_Ne)
             for event in ord_events[time].keys():
                 for params in ord_events[time][event]:
                     if "Ne" in event:
                         # key = Ne_1_100000_0
                         _, pop, size, grow = params.split("_")
-                        size = int(size) * (ploidy/4.0)
+                        size = int(size)
                         pop = f"{int(pop)-1}"
                         init_size[int(pop)] = size
                         if pop not in sourcelist:
@@ -185,6 +183,6 @@ class Model(object):
                         pop1 = f"{int(pop1)-1}"
                         pop2 = f"{int(pop2)-1}"
                         if not any(i in sourcelist for i in [pop1, pop2]):
-                            mig = params*ploidy*init_size[pop1]
+                            mig = params*4*scaled_Ne
                             dem_list.append(f"-m {new_time} {pop1} {pop2} {mig}")
         return dem_list

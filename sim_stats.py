@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Jun 21 18:05:14 2018
-Class for calculating summary statistics from simulations
+Class for calculating summary statistics from simulations input as ms or directly
+as msprime
 @author: stsmall
 """
 from subprocess import run, PIPE
@@ -29,17 +30,7 @@ class SumStats:
         self.pos = pos
         self.pops = pops
 
-    def treeseq2gtarray(self, tree_sequence):
-        """Calculate stats from msprime tree sequence."""
-        V = np.zeros((tree_sequence.get_num_mutations(),
-                      tree_sequence.get_sample_size()), dtype=np.int8)
-        for variant in tree_sequence.variants():
-            V[variant.index] = variant.genotypes
-        gt = allel.HaplotypeArray(V)
-        pos = allel.SortedIndex([int(v.position) for v in tree_sequence.variants()])
-        return(pos, gt)
-
-    def asfsStats(self, fold=False, rand=True, randn=100000):
+    def asfsStats(self, fold=False, rand=True, randn=10000):
         """Calculate the aggregate SFS, singletons and doubletons.
 
         Parameters
@@ -151,7 +142,7 @@ class SumStats:
         props = jsfsarray/jsfstotal
         return props
 
-    def jsfsStats(self, pairs, fold=False, rand=True, randn=100000):
+    def jsfsStats(self, pairs, fold=False, rand=True, randn=10000):
         """Calculate joint site frequency spectrum (jsfs) with scikit-allel.
 
         Parameters
@@ -429,7 +420,7 @@ class SumStats:
             proc = run(cmd, stdout=PIPE, input=msinput, encoding='ascii', check=True)
             # collect stats
             lstats = proc.stdout.rstrip().split('\n')[1:]
-            filet_list = [list(map(float, l.split())) for l in lstats]
+            filet_list = [list(map(float, lf.split())) for lf in lstats]
             for rep, stat_ix in rep_dict.items():
                 # must be a more elegant way to cluster these
                 if len(stat_ix) > 1:
@@ -445,7 +436,7 @@ class SumStats:
                     stat_arr[np.isinf(stat_arr)] = 'nan'
                     filet_norm = stat_arr / norm
                     filet_dict[rep].append(" ".join(map(str, filet_norm)))
-        #filet = " ".join(map(str, np.concatenate(filet_list).ravel()))
+        # filet = " ".join(map(str, np.concatenate(filet_list).ravel()))
         return filet_dict
 
     def filetStatsMP(self, args):
@@ -470,7 +461,7 @@ class SumStats:
         if block == 0:
             block = basepairs
 
-       #stats and norm
+        # stats and norm
         keep_stats = np.array([True, True, True, True, False, True, False, False,
                                True, True, True, True, True, False, True, False,
                                False, True, True, True, True, True, True, True,
@@ -559,7 +550,7 @@ class SumStats:
         proc = run(cmd, stdout=PIPE, input=msinput, encoding='ascii', check=True)
         # collect stats
         lstats = proc.stdout.rstrip().split('\n')[1:]
-        filet_list = [list(map(float, l.split())) for l in lstats]
+        filet_list = [list(map(float, lf.split())) for lf in lstats]
         for rep, stat_ix in rep_dict.items():
             # must be a more elegant way to cluster these
             if len(stat_ix) > 1:

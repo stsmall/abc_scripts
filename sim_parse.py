@@ -4,6 +4,8 @@
 Created on Fri Apr 24 20:18:46 2020
 @author: Scott T. Small
 
+Reading and parsing ms-style formatted files for input into abc_stats.py
+
 """
 import numpy as np
 import bisect

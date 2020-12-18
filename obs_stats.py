@@ -81,7 +81,7 @@ def makeAncArray(calls, pos, chr_arm, anc_fasta):
     return np.array(anc_list)
 
 
-def asfsObsStats(args, fold=False, rand=True, randn=100000):
+def asfsObsStats(args, fold=False, rand=True, randn=10000):
     """
 
     Parameters
@@ -196,7 +196,7 @@ def summarizejsfs(fs):
     return props
 
 
-def jsfsObsStats(args, fold=False, rand=True, randn=100000):
+def jsfsObsStats(args, fold=False, rand=True, randn=10000):
     """
 
     Parameters

@@ -1,3 +1,5 @@
+## this repo has been deprecated. Please see the refactor repo abc_scripts2  
+
 # Scripts for Approximate Bayesian Computation in population genomics 
 
 * [Models associated with our 2020 paper on An funestus complex](afc_models)
